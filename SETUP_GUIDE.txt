@@ -1,0 +1,288 @@
+# ContactSync — Complete Setup Guide
+# ====================================
+# Follow every step in order. Each section is numbered.
+# Estimated total time: 30–45 minutes.
+
+
+═══════════════════════════════════════════════════════════════
+ PART 1 — Install Python on your Windows PC
+═══════════════════════════════════════════════════════════════
+
+1. Open your browser and go to:
+      https://www.python.org/downloads/
+
+2. Click the big yellow "Download Python 3.x.x" button.
+
+3. Run the installer. On the FIRST screen:
+      ✅ Check "Add Python to PATH"   ← IMPORTANT, do not skip this
+      Then click "Install Now"
+
+4. When it finishes, click "Close".
+
+5. Test it worked:
+      - Press Windows key + R, type: cmd, press Enter
+      - In the black window, type:  python --version
+      - You should see something like:  Python 3.12.x
+      If you see an error instead, restart your PC and try again.
+
+
+═══════════════════════════════════════════════════════════════
+ PART 2 — Copy the project files
+═══════════════════════════════════════════════════════════════
+
+1. Create a folder called ContactSync somewhere easy to find, e.g.:
+      C:\ContactSync
+
+2. Copy all the project files into that folder. When done it should
+   contain these files:
+      config.py
+      app.py
+      sync_engine.py
+      database.py
+      templates\  (folder with .html files inside)
+      instance\   (empty folder — the database goes here)
+
+
+═══════════════════════════════════════════════════════════════
+ PART 3 — Install the required Python libraries
+═══════════════════════════════════════════════════════════════
+
+1. Open Command Prompt (Windows key + R → cmd → Enter)
+
+2. Type the following commands one at a time, pressing Enter after each.
+   Wait for each one to finish before typing the next.
+
+      pip install flask
+      pip install exchangelib[msal]
+      pip install pypandoc
+
+3. pypandoc needs Pandoc itself. Install it:
+      - Go to: https://pandoc.org/installing.html
+      - Download the Windows installer (.msi file)
+      - Run it (next → next → finish)
+
+4. Test pypandoc found Pandoc:
+      python -c "import pypandoc; print(pypandoc.get_pandoc_version())"
+   You should see a version number like  3.x.x
+
+
+═══════════════════════════════════════════════════════════════
+ PART 4 — Register an app in Azure (OAuth2 credentials)
+═══════════════════════════════════════════════════════════════
+
+This is the only slightly technical part — it's done entirely in
+a browser. You need to be a Microsoft 365 administrator, or ask
+your M365 admin to do this section.
+
+STEP 4a — Open Azure portal
+   Go to: https://portal.azure.com
+   Sign in with your Microsoft 365 admin account.
+
+STEP 4b — Go to App Registrations
+   - In the search bar at the top, type: App registrations
+   - Click the result that appears
+   - Click "+ New registration"
+
+STEP 4c — Register the app
+   - Name: ContactSync (or anything you like)
+   - Supported account types: "Accounts in this organizational directory only"
+   - Redirect URI: leave blank
+   - Click "Register"
+
+STEP 4d — Note down your IDs
+   On the page that appears after registering, you will see:
+      Application (client) ID:  xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      Directory (tenant) ID:    xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   COPY BOTH OF THESE — you need them in Part 5.
+
+STEP 4e — Create a client secret
+   - In the left menu, click "Certificates & secrets"
+   - Click "+ New client secret"
+   - Description: ContactSync secret
+   - Expires: 24 months (or as long as possible)
+   - Click "Add"
+   - IMMEDIATELY copy the VALUE shown (the long string in the "Value" column)
+     ⚠ You can only see this once — copy it now before leaving the page.
+
+STEP 4f — Add API permissions
+   - In the left menu, click "API permissions"
+   - Click "+ Add a permission"
+   - Click "APIs my organization uses"
+   - Search for: Office 365 Exchange Online
+   - Click it, then click "Application permissions"
+   - Find and check: full_access_as_app
+   - Click "Add permissions"
+   - Click "Grant admin consent for [your org name]"
+   - Click "Yes" to confirm
+   - The status should show a green tick ✅
+
+STEP 4g — Enable EWS in your tenant
+   Some M365 tenants have EWS blocked by default. To check/enable:
+   - Go to: https://admin.exchange.microsoft.com
+   - Classic Exchange Admin: Settings → Organization → EWS
+   - Or in modern Exchange Admin Center, search for "EWS"
+   - Make sure "Enable EWS" is on.
+   If you cannot find this setting, EWS is probably already on.
+
+
+═══════════════════════════════════════════════════════════════
+ PART 5 — Edit the configuration file
+═══════════════════════════════════════════════════════════════
+
+1. Open C:\ContactSync\config.py in Notepad.
+   (Right-click → Open with → Notepad)
+
+2. Fill in the values you collected in Part 4:
+
+      TENANT_ID     = "paste-your-tenant-id-here"
+      CLIENT_ID     = "paste-your-client-id-here"
+      CLIENT_SECRET = "paste-your-client-secret-here"
+
+3. Set the mailbox email — the Contacts folder that will be synced:
+
+      MAILBOX_EMAIL = "you@yourcompany.com"
+
+4. Set a secret key — type any long random string of letters/numbers:
+
+      SECRET_KEY = "hf83hfj28fhHFKS92hfksjd82hfkHJF"
+
+5. Set your three user accounts:
+
+      USERS = {
+          "alice":  {"password": "choose-a-password", "role": "readonly"},
+          "bob":    {"password": "choose-a-password", "role": "editor"},
+          "carol":  {"password": "choose-a-password", "role": "admin"},
+      }
+
+   Change alice/bob/carol to real usernames. Set real passwords.
+   Roles must be exactly: "readonly", "editor", or "admin"
+
+6. Save the file (Ctrl + S).
+
+
+═══════════════════════════════════════════════════════════════
+ PART 6 — Run the initial sync
+═══════════════════════════════════════════════════════════════
+
+1. Open Command Prompt
+2. Navigate to your folder:
+      cd C:\ContactSync
+
+3. Run the initial full sync:
+      python -c "from database import init_db; from sync_engine import full_sync; init_db(); full_sync()"
+
+   This pulls ALL contacts from Exchange. Depending on how many you
+   have, this may take several minutes. You'll see progress in the window.
+   Wait until it says "Full sync done".
+
+4. Start the web app:
+      python app.py
+
+   You should see:
+      ✓ Contact Sync running at http://localhost:5000
+
+5. Open your browser and go to:
+      http://localhost:5000
+
+   Sign in with one of the accounts you set up in config.py.
+   You should see your contacts!
+
+6. To access from other computers on your network:
+   Find your PC name (Settings → System → About → Device name)
+   Then go to: http://YOUR-PC-NAME:5000
+
+
+═══════════════════════════════════════════════════════════════
+ PART 7 — Make it run automatically at startup (Windows)
+═══════════════════════════════════════════════════════════════
+
+So the app starts when the PC boots and keeps running in the background:
+
+1. Create a file called  start_contactsync.bat  in C:\ContactSync
+   with this content:
+      @echo off
+      cd /d C:\ContactSync
+      python app.py
+
+2. Press Windows key + R, type:  taskschd.msc  → Enter
+   (This opens Task Scheduler)
+
+3. Click "Create Basic Task…" on the right side
+
+4. Name: ContactSync
+   Click Next
+
+5. Trigger: "When the computer starts"
+   Click Next
+
+6. Action: "Start a program"
+   Click Next
+
+7. Program/script: C:\ContactSync\start_contactsync.bat
+   Click Next → Finish
+
+8. Find the task in the list, right-click → Properties
+   - Tick "Run whether user is logged on or not"
+   - Tick "Run with highest privileges"
+   - Click OK
+
+The app will now start automatically whenever the PC boots.
+
+
+═══════════════════════════════════════════════════════════════
+ PART 8 — Making it accessible from the internet (optional)
+═══════════════════════════════════════════════════════════════
+
+By default the app is only accessible on your local network.
+To access it from anywhere (outside your office), you have options:
+
+OPTION A — VPN (Recommended, most secure)
+   If your company already has a VPN, connect to it and then
+   access http://YOUR-PC-NAME:5000 as normal. No extra setup needed.
+
+OPTION B — Tailscale (Easy, free for small teams)
+   Tailscale creates a private network between devices without exposing
+   anything to the internet.
+   1. Install Tailscale on the server PC: https://tailscale.com/download
+   2. Install Tailscale on each user's device
+   3. All devices can then reach each other by Tailscale IP address
+   Visit tailscale.com for setup instructions (takes ~10 minutes).
+
+OPTION C — Port forwarding (Not recommended without HTTPS)
+   Do not expose this app directly to the internet without adding
+   HTTPS (SSL). Contact a developer if you need internet access
+   without a VPN or Tailscale.
+
+
+═══════════════════════════════════════════════════════════════
+ TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════
+
+Problem: "python is not recognized as a command"
+Solution: Python was not added to PATH. Uninstall Python, reinstall
+          it and make sure to check "Add Python to PATH" on the first screen.
+
+Problem: The sync fails with "authentication error" or "401"
+Solution: Double-check TENANT_ID, CLIENT_ID, CLIENT_SECRET in config.py.
+          Make sure you granted admin consent in Step 4f.
+          Make sure EWS is enabled (Step 4g).
+
+Problem: "No module named flask" or similar
+Solution: Run the pip install commands from Part 3 again.
+          Make sure you are in a Command Prompt (not PowerShell).
+
+Problem: The app starts but shows 0 contacts
+Solution: The initial sync may not have run. Open a browser to
+          http://localhost:5000, log in as admin, and click
+          "Run full sync now" on the Admin page.
+
+Problem: RTF formatting not converting properly
+Solution: Make sure Pandoc is installed and pypandoc can find it.
+          Run: python -c "import pypandoc; print(pypandoc.get_pandoc_version())"
+          If that fails, reinstall Pandoc from pandoc.org/installing.html
+
+Problem: Can't access from another PC on the network
+Solution: Windows Firewall may be blocking port 5000. To open it:
+          - Search "Windows Firewall" in Start menu
+          - Click "Advanced settings"
+          - Inbound Rules → New Rule → Port → TCP → 5000 → Allow

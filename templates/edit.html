@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Edit — {{ c.display_name }}{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
+  <div>
+    <a href="{{ url_for('contact_detail', cid=c.id) }}" class="btn btn-secondary btn-sm">
+      &#8592; Back
+    </a>
+  </div>
+</div>
+
+<div style="max-width:820px;">
+  <div style="margin-bottom:1.5rem;">
+    <h1 style="font-family:'DM Serif Display',serif; font-size:1.75rem; font-weight:400;">
+      Edit notes
+    </h1>
+    <p style="color:var(--muted); font-size:.875rem; margin-top:.25rem;">
+      {{ c.display_name }}{% if c.company %} &mdash; {{ c.company }}{% endif %}
+    </p>
+  </div>
+
+  <!-- Editor card -->
+  <div class="card" style="padding:1.5rem; margin-bottom:1.25rem;">
+    <div class="section-title">Notes</div>
+    <div id="quill-editor">{{ c.notes_html | safe }}</div>
+  </div>
+
+  <!-- Info notice -->
+  <div style="background:var(--accent-light); border:1px solid #c8d6fa;
+              border-radius:8px; padding:.85rem 1rem; margin-bottom:1.25rem;
+              font-size:.825rem; color:#1e47cc; display:flex; gap:.6rem; align-items:flex-start;">
+    <span style="flex-shrink:0; font-size:1rem;">ℹ</span>
+    <span>Your edits save to the local database immediately.
+    They will be written back to Outlook/Exchange on the next sync cycle
+    (within {{ config.SYNC_INTERVAL_SECONDS // 60 }} minutes).</span>
+  </div>
+
+  <!-- Save / Cancel -->
+  <form method="POST" action="{{ url_for('edit_contact', cid=c.id) }}" id="edit-form">
+    <input type="hidden" name="notes_html" id="notes-hidden">
+    <div style="display:flex; gap:.75rem;">
+      <button type="submit" class="btn btn-primary" id="save-btn">
+        Save changes
+      </button>
+      <a href="{{ url_for('contact_detail', cid=c.id) }}" class="btn btn-secondary">
+        Cancel
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+<script>
+const quill = new Quill('#quill-editor', {
+  theme: 'snow',
+  modules: {
+    toolbar: [
+      [{ header: [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ color: [] }, { background: [] }],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      [{ indent: '-1' }, { indent: '+1' }],
+      ['link'],
+      ['clean']
+    ]
+  }
+});
+
+document.getElementById('edit-form').addEventListener('submit', function(e) {
+  document.getElementById('notes-hidden').value =
+    quill.getSemanticHTML();
+});
+</script>
+{% endblock %}

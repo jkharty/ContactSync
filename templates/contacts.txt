@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block title %}Contacts{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Contacts</h1>
+    <p id="contacts-count">{{ total }} contact{{ 's' if total != 1 else '' }}
+      {%- if query %} matching "{{ query }}"{% endif %}
+      {%- if category %} in "{{ category }}"{% endif %}
+    </p>
+  </div>
+</div>
+
+<!-- Search + category filter -->
+<div class="card" style="padding:1rem 1.25rem; margin-bottom:1.25rem;">
+  <div style="display:flex; gap:.75rem; align-items:center;">
+    <div style="flex:1; position:relative;">
+      <svg style="position:absolute;left:.75rem;top:50%;transform:translateY(-50%);opacity:.4;pointer-events:none"
+           width="16" height="16" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input type="search" id="search-input" value="{{ query }}"
+             placeholder="Search by name, company, email, or notes…"
+             style="padding-left:2.4rem" autocomplete="off">
+    </div>
+
+    <div style="flex-shrink:0;">
+      <select id="cat-select" style="min-width:160px;">
+        <option value="">All categories</option>
+        {% for cat in available_categories %}
+        <option value="{{ cat }}" {% if cat == category %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div id="clear-btn-wrap" style="display:{% if query or category %}inline-flex{% else %}none{% endif %};">
+      <a href="#" id="clear-link" class="btn btn-secondary">Clear</a>
+    </div>
+  </div>
+</div>
+
+<!-- Results table -->
+<div class="card" style="overflow:hidden;">
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Company</th>
+        <th>Title</th>
+        <th>Email</th>
+        <th>Phone</th>
+      </tr>
+    </thead>
+    <tbody id="contacts-tbody">
+      {% for c in contacts %}
+      <tr style="cursor:pointer" onclick="location.href='{{ url_for('contact_detail', cid=c.id) }}'">
+        <td>
+          <a href="{{ url_for('contact_detail', cid=c.id) }}">{{ c.display_name or '(no name)' }}</a>
+          {% if c.categories %}
+          <div style="display:flex; flex-wrap:wrap; gap:.25rem; margin-top:.25rem;">
+            {% for cat in c.categories.split('|') %}{% if cat.strip() %}
+            <span class="chip" style="font-size:.7rem; padding:.1rem .4rem;">{{ cat.strip() }}</span>
+            {% endif %}{% endfor %}
+          </div>
+          {% endif %}
+        </td>
+        <td>{{ c.company or '' }}</td>
+        <td style="color:var(--muted)">{{ c.job_title or '' }}</td>
+        <td>
+          {% if c.email1 %}
+          <a href="mailto:{{ c.email1 }}" onclick="event.stopPropagation()">{{ c.email1 }}</a>
+          {% endif %}
+        </td>
+        <td style="color:var(--muted); font-variant-numeric:tabular-nums">
+          {{ c.phone_business or c.phone_mobile or c.phone_home or '' }}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--muted);">
+        No contacts found.
+        {% if query or category %}Try a different search term or category.
+        {% else %}The sync may still be running.{% endif %}
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div id="pagination-wrap">
+    {% if pages > 1 %}
+    <div style="padding:1rem 1.25rem; border-top:1px solid var(--border);
+                display:flex; align-items:center; justify-content:space-between;">
+      <span style="font-size:.8rem; color:var(--muted)">Page {{ page }} of {{ pages }}</span>
+      <div class="pagination">
+        {% if page > 1 %}
+        <a class="page-btn" href="?q={{ query }}&cat={{ category }}&page={{ page-1 }}">&#8592; Prev</a>
+        {% endif %}
+        {% for p in range([1,page-2]|max, [pages+1,page+3]|min) %}
+        <a class="page-btn {{ 'active' if p==page else '' }}"
+           href="?q={{ query }}&cat={{ category }}&page={{ p }}">{{ p }}</a>
+        {% endfor %}
+        {% if page < pages %}
+        <a class="page-btn" href="?q={{ query }}&cat={{ category }}&page={{ page+1 }}">Next &#8594;</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  const searchInput = document.getElementById('search-input');
+  const catSelect   = document.getElementById('cat-select');
+  const clearWrap   = document.getElementById('clear-btn-wrap');
+  const tbody       = document.getElementById('contacts-tbody');
+  const countLabel  = document.getElementById('contacts-count');
+  const pagination  = document.getElementById('pagination-wrap');
+  let debounceTimer = null;
+
+  function categoryChips(cats) {
+    if (!cats) return '';
+    const chips = cats.split('|').filter(c => c.trim()).map(c =>
+      `<span class="chip" style="font-size:.7rem;padding:.1rem .4rem;">${c.trim()}</span>`
+    ).join(' ');
+    return chips ? `<div style="display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.25rem;">${chips}</div>` : '';
+  }
+
+  function renderResults(data) {
+    const q   = searchInput.value.trim();
+    const cat = catSelect.value;
+
+    // Count label
+    let label = `${data.total} contact${data.total !== 1 ? 's' : ''}`;
+    if (q)   label += ` matching "${q}"`;
+    if (cat) label += ` in "${cat}"`;
+    countLabel.textContent = label;
+
+    // Rebuild category dropdown keeping selection
+    catSelect.innerHTML = '<option value="">All categories</option>' +
+      data.available_categories.map(c =>
+        `<option value="${c}"${c === cat ? ' selected' : ''}>${c}</option>`
+      ).join('');
+
+    // Rows
+    if (data.contacts.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--muted);">
+        No contacts found.${(q || cat) ? ' Try a different search term or category.' : ''}
+      </td></tr>`;
+    } else {
+      tbody.innerHTML = data.contacts.map(c => `
+        <tr style="cursor:pointer" onclick="location.href='/contacts/${c.id}'">
+          <td>
+            <a href="/contacts/${c.id}">${c.display_name || '(no name)'}</a>
+            ${categoryChips(c.categories)}
+          </td>
+          <td>${c.company || ''}</td>
+          <td style="color:var(--muted)">${c.job_title || ''}</td>
+          <td>${c.email1
+            ? `<a href="mailto:${c.email1}" onclick="event.stopPropagation()">${c.email1}</a>`
+            : ''}</td>
+          <td style="color:var(--muted);font-variant-numeric:tabular-nums">
+            ${c.phone_business || c.phone_mobile || c.phone_home || ''}
+          </td>
+        </tr>`).join('');
+    }
+
+    // Pagination
+    if (data.pages > 1) {
+      let btns = '';
+      if (data.page > 1)
+        btns += `<a class="page-btn" href="#" data-page="${data.page - 1}">&#8592; Prev</a>`;
+      const s = Math.max(1, data.page - 2), e = Math.min(data.pages + 1, data.page + 3);
+      for (let p = s; p < e; p++)
+        btns += `<a class="page-btn ${p === data.page ? 'active' : ''}" href="#" data-page="${p}">${p}</a>`;
+      if (data.page < data.pages)
+        btns += `<a class="page-btn" href="#" data-page="${data.page + 1}">Next &#8594;</a>`;
+
+      pagination.innerHTML = `
+        <div style="padding:1rem 1.25rem;border-top:1px solid var(--border);
+                    display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:.8rem;color:var(--muted)">Page ${data.page} of ${data.pages}</span>
+          <div class="pagination">${btns}</div>
+        </div>`;
+
+      pagination.querySelectorAll('[data-page]').forEach(a =>
+        a.addEventListener('click', e => { e.preventDefault(); doSearch(parseInt(a.dataset.page)); })
+      );
+    } else {
+      pagination.innerHTML = '';
+    }
+
+    clearWrap.style.display = (q || cat) ? 'inline-flex' : 'none';
+  }
+
+  function doSearch(page) {
+    page = page || 1;
+    const q   = searchInput.value.trim();
+    const cat = catSelect.value;
+
+    // Update URL so back button restores the search
+    const url = new URL(window.location.href);
+    url.searchParams.set('q', q);
+    url.searchParams.set('cat', cat);
+    url.searchParams.set('page', page);
+    history.pushState({q, cat, page}, '', url.toString());
+
+    fetch(`/api/contacts?q=${encodeURIComponent(q)}&cat=${encodeURIComponent(cat)}&page=${page}`)
+      .then(r => r.json())
+      .then(renderResults)
+      .catch(err => console.error('Search error:', err));
+  }
+
+  // Restore search on browser back/forward
+  window.addEventListener('popstate', function(e) {
+    if (e.state) {
+      searchInput.value = e.state.q   || '';
+      catSelect.value   = e.state.cat || '';
+      doSearch(e.state.page || 1);
+    }
+  });
+
+  // Debounced live search
+  searchInput.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => doSearch(1), 300);
+  });
+
+  // Category change is immediate
+  catSelect.addEventListener('change', () => doSearch(1));
+
+  // Clear resets both fields
+  document.getElementById('clear-link').addEventListener('click', function(e) {
+    e.preventDefault();
+    searchInput.value = '';
+    catSelect.value   = '';
+    doSearch(1);
+  });
+
+  // Set initial pushState so popstate works on first back-navigation
+  const initQ   = searchInput.value.trim();
+  const initCat = catSelect.value;
+  history.replaceState({q: initQ, cat: initCat, page: {{ page }}}, '', window.location.href);
+})();
+</script>
+{% endblock %}

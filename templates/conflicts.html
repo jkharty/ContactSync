@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Conflicts{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Sync conflicts</h1>
+    <p>These contacts were edited in both the app and Outlook at the same time. Choose which version wins.</p>
+  </div>
+  <a href="{{ url_for('admin') }}" class="btn btn-secondary btn-sm">← Admin</a>
+</div>
+
+{% if pending %}
+<div style="margin-bottom:2rem;">
+  <div class="section-title" style="color:var(--warning); border-color:#f5d99a; margin-bottom:1rem;">
+    {{ pending|length }} pending conflict{{ 's' if pending|length != 1 else '' }}
+  </div>
+
+  {% for c in pending %}
+  <div class="card" style="margin-bottom:1.25rem; overflow:hidden;" id="conflict-{{ c.id }}">
+    <!-- Header -->
+    <div style="padding:1.25rem; border-bottom:1px solid var(--border);
+                display:flex; align-items:center; justify-content:space-between;
+                background:#fffdf7;">
+      <div>
+        <div style="font-weight:500; font-size:1rem;">{{ c.display_name }}</div>
+        <div style="font-size:.78rem; color:var(--muted); margin-top:.2rem;">
+          App edited by <strong>{{ c.app_edited_by }}</strong>
+          at {{ c.app_edited_at[:19].replace('T',' ') }}
+          &nbsp;·&nbsp;
+          Outlook changed at {{ c.outlook_modified_at[:19].replace('T','  ') if c.outlook_modified_at else 'unknown' }}
+        </div>
+      </div>
+      <span class="badge" style="background:#fef3e2; color:var(--warning);">Needs review</span>
+    </div>
+
+    <!-- Side by side comparison -->
+    <div style="display:grid; grid-template-columns:1fr 1fr;">
+
+      <!-- App version -->
+      <div style="padding:1.25rem; border-right:1px solid var(--border);">
+        <div style="font-size:.72rem; font-weight:500; text-transform:uppercase;
+                    letter-spacing:.06em; color:var(--accent); margin-bottom:.75rem;">
+          App version (edited by {{ c.app_edited_by }})
+        </div>
+        <div class="notes-body" style="font-size:.85rem; min-height:80px;">
+          {% if c.app_html %}
+            {{ c.app_html | safe }}
+          {% else %}
+            <em style="color:var(--muted);">No notes</em>
+          {% endif %}
+        </div>
+        <div style="margin-top:1rem;">
+          <button class="btn btn-primary btn-sm"
+                  onclick="resolveConflict({{ c.id }}, 'app', this)">
+            ✓ Use app version
+          </button>
+        </div>
+      </div>
+
+      <!-- Outlook version -->
+      <div style="padding:1.25rem;">
+        <div style="font-size:.72rem; font-weight:500; text-transform:uppercase;
+                    letter-spacing:.06em; color:var(--warning); margin-bottom:.75rem;">
+          Outlook version (changed in Exchange)
+        </div>
+        <div class="notes-body" style="font-size:.85rem; min-height:80px;">
+          {% if c.outlook_html %}
+            {{ c.outlook_html | safe }}
+          {% else %}
+            <em style="color:var(--muted);">No notes</em>
+          {% endif %}
+        </div>
+        <div style="margin-top:1rem;">
+          <button class="btn btn-secondary btn-sm"
+                  onclick="resolveConflict({{ c.id }}, 'outlook', this)">
+            ✓ Use Outlook version
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="padding:3rem; text-align:center; color:var(--muted); margin-bottom:1.5rem;">
+  <div style="font-size:2rem; margin-bottom:.75rem;">✓</div>
+  <p style="font-size:1rem; font-weight:500; margin-bottom:.35rem;">No pending conflicts</p>
+  <p style="font-size:.875rem;">All edits are in sync between the app and Outlook.</p>
+</div>
+{% endif %}
+
+{% if resolved %}
+<div>
+  <div class="section-title" style="margin-bottom:.75rem;">Recently resolved</div>
+  <div class="card" style="overflow:hidden;">
+    <table>
+      <thead>
+        <tr>
+          <th>Contact</th>
+          <th>Winner</th>
+          <th>Resolved by</th>
+          <th>Resolved at</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in resolved %}
+        <tr>
+          <td>{{ c.display_name }}</td>
+          <td>
+            {% if c.winner == 'app' %}
+            <span class="badge badge-editor">App version</span>
+            {% else %}
+            <span class="badge badge-readonly">Outlook version</span>
+            {% endif %}
+          </td>
+          <td style="color:var(--muted);">{{ c.resolved_by }}</td>
+          <td style="color:var(--muted); font-size:.82rem;">
+            {{ c.resolved_at[:19].replace('T',' ') if c.resolved_at else '—' }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function resolveConflict(id, winner, btn) {
+  const card = document.getElementById('conflict-' + id);
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const form = new FormData();
+  form.append('winner', winner);
+
+  fetch(`/admin/conflicts/${id}/resolve`, { method: 'POST', body: form })
+    .then(r => r.json())
+    .then(d => {
+      if (d.status === 'resolved') {
+        card.style.transition = 'opacity .4s';
+        card.style.opacity = '0';
+        setTimeout(() => {
+          card.remove();
+          const remaining = document.querySelectorAll('[id^="conflict-"]').length;
+          if (remaining === 0) location.reload();
+        }, 400);
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Error — try again';
+      }
+    })
+    .catch(() => {
+      btn.disabled = false;
+      btn.textContent = 'Error — try again';
+    });
+}
+</script>
+{% endblock %}
