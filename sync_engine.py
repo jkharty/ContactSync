@@ -9,7 +9,7 @@ import config
 from database import get_db
 from exchangelib import (
     Account, Configuration, ExtendedProperty, Contact, DELEGATE, IMPERSONATION,
-    HTMLBody, EWSDateTime, UTC
+    HTMLBody, EWSDateTime, UTC, Identity
 )
 from exchangelib.credentials import OAuth2AuthorizationCodeCredentials
 
@@ -271,6 +271,9 @@ def get_account():
         client_secret = config.CLIENT_SECRET,
         tenant_id     = config.TENANT_ID,
         access_token  = result,
+        # Required for app-only (client credentials) tokens: tells Exchange
+        # which mailbox to impersonate via the ExchangeImpersonation SOAP header.
+        identity      = Identity(primary_smtp_address=config.MAILBOX_EMAIL),
     )
     cfg = Configuration(
         server      = "outlook.office365.com",
