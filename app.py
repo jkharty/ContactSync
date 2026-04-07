@@ -168,6 +168,9 @@ def _available_cats(db, where_sql, params):
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    # If Easy Auth already set the session (M365 login), skip the login page.
+    if "username" in session:
+        return redirect(url_for("index"))
     error = None
     if request.method == "POST":
         username = request.form.get("username", "").strip()
