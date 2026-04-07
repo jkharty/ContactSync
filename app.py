@@ -12,6 +12,16 @@ from sync_engine import full_sync, run_scheduler, html_to_rtf
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 
+# ── Startup tasks (runs under both gunicorn and direct `python app.py`) ───────
+# init_db() is safe to call multiple times — all tables use CREATE IF NOT EXISTS.
+with app.app_context():
+    init_db()
+
+# Start the background sync scheduler. Each gunicorn worker runs its own thread;
+# the sync engine's database transactions prevent data corruption.
+_scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+_scheduler_thread.start()
+
 @app.context_processor
 def inject_config():
     def get_sync_errors():
@@ -603,10 +613,6 @@ def bulk_assign():
 
 # ── Startup ───────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    init_db()
-    # Start background sync scheduler
-    t = threading.Thread(target=run_scheduler, daemon=True)
-    t.start()
     print(f"\n✓ Contact Sync running at http://localhost:{config.WEB_PORT}")
     print(f"  Access from other PCs at http://YOUR-PC-NAME:{config.WEB_PORT}\n")
     app.run(host="0.0.0.0", port=config.WEB_PORT, debug=False)
