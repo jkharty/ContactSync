@@ -12,6 +12,43 @@ from sync_engine import full_sync, run_scheduler, html_to_rtf
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 
+# ── Easy Auth / Microsoft 365 login ───────────────────────────────────────────
+_DOMAIN      = "invisionvail.com"
+_ADMIN_EMAIL = "johnh@invisionvail.com"
+
+@app.before_request
+def load_azure_user():
+    """
+    When Azure Easy Auth is active, every request arrives with the header
+    X-MS-CLIENT-PRINCIPAL-NAME set to the signed-in user's email address.
+    Map that email to a session role and populate session['username'].
+
+    When running locally (no Easy Auth), the header is absent and this
+    function is a no-op — the normal /login route handles authentication.
+    """
+    # Let Easy Auth's own /.auth/* endpoints through without a session.
+    if request.path.startswith("/.auth"):
+        return
+
+    email = request.headers.get("X-MS-CLIENT-PRINCIPAL-NAME", "")
+    if not email:
+        # No Easy Auth header — local dev, fall through to normal login.
+        return
+
+    # Assign role based on email address.
+    if email.lower() == _ADMIN_EMAIL.lower():
+        role = "admin"
+    elif email.lower().endswith("@" + _DOMAIN):
+        role = "readonly"
+    else:
+        # Not an invisionvail.com address — deny access.
+        return "Access denied: your Microsoft account is not authorised for this application.", 403
+
+    # Populate the session so login_required and role_required work normally.
+    session["username"] = email.split("@")[0]
+    session["email"]    = email
+    session["role"]     = role
+
 # ── Startup tasks (runs under both gunicorn and direct `python app.py`) ───────
 # init_db() is safe to call multiple times — all tables use CREATE IF NOT EXISTS.
 with app.app_context():
@@ -161,7 +198,11 @@ def login():
 @app.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("login"))
+    # When Easy Auth is active, /.auth/logout signs out of Microsoft too.
+    # When running locally (no Easy Auth), it redirects harmlessly to /.auth/logout
+    # which doesn't exist and falls back to the login page via the 404 handler —
+    # so we redirect to / which login_required will redirect to /login.
+    return redirect("/.auth/logout?post_logout_redirect_uri=/")
 
 @app.route("/")
 @login_required
