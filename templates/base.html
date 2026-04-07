@@ -356,8 +356,8 @@
 
 <nav>
   <a class="nav-brand" href="{{ url_for('contacts') }}">
-    <img src="{{ url_for('static', filename='images/invision_logo.jpg') }}" alt="InVision" style="height:26px; width:auto; vertical-align:middle;">
-    <span style="font-family:'DM Serif Display',serif; font-size:1.6rem;">Sync</span>
+    <img src="{{ url_for('static', filename='images/invision_logo.jpg') }}" alt="InVision" style="height:26px; width:auto;">
+    <span style="font-family:'DM Serif Display',serif; font-size:1.6rem; margin-bottom:5px;">Sync</span>
   </a>
   <div class="nav-links">
     <a class="nav-link {% if request.endpoint=='contacts' %}active{% endif %}"
