@@ -63,6 +63,13 @@ def load_azure_user():
 # init_db() is safe to call multiple times — all tables use CREATE IF NOT EXISTS.
 with app.app_context():
     init_db()
+    # One-time migration: set display_name to company for contacts with no name
+    with get_db() as _db:
+        _db.execute("""
+            UPDATE contacts SET display_name = company
+            WHERE (display_name IS NULL OR display_name = '')
+              AND company IS NOT NULL AND company != ''
+        """)
 
 # Start the background sync scheduler. Each gunicorn worker runs its own thread;
 # the sync engine's database transactions prevent data corruption.
