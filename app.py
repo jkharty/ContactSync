@@ -2,7 +2,7 @@
 app.py — Flask web application.
 Serves the contact browser/editor to users on the local network.
 """
-import datetime, threading, functools, json as _json
+import os, datetime, threading, functools, json as _json
 from flask import (Flask, render_template, request, redirect,
                    url_for, session, jsonify, g)
 import config
@@ -15,6 +15,14 @@ app.secret_key = config.SECRET_KEY
 # ── Easy Auth / Microsoft 365 login ───────────────────────────────────────────
 _DOMAIN      = "invisionvail.com"
 _ADMIN_EMAIL = "johnh@invisionvail.com"
+
+# Comma-separated list of @invisionvail.com emails that get the viewedit role.
+# Set via App Setting: VIEWEDIT_EMAILS=alice@invisionvail.com,bob@invisionvail.com
+_VIEWEDIT_EMAILS = set(
+    e.strip().lower()
+    for e in os.environ.get("VIEWEDIT_EMAILS", "").split(",")
+    if e.strip()
+)
 
 @app.before_request
 def load_azure_user():
@@ -38,6 +46,8 @@ def load_azure_user():
     # Assign role based on email address.
     if email.lower() == _ADMIN_EMAIL.lower():
         role = "admin"
+    elif email.lower() in _VIEWEDIT_EMAILS:
+        role = "viewedit"
     elif email.lower().endswith("@" + _DOMAIN):
         role = "readonly"
     else:
@@ -261,7 +271,7 @@ def contact_detail(cid):
 
 @app.route("/contacts/<int:cid>/edit", methods=["GET", "POST"])
 @login_required
-@role_required("editor", "admin")
+@role_required("editor", "viewedit", "admin")
 def edit_contact(cid):
     db  = get_request_db()
     row = db.execute("SELECT * FROM contacts WHERE id=?", (cid,)).fetchone()
@@ -293,7 +303,7 @@ def edit_contact(cid):
 # ── Edit contact fields (identity / contact info / address / categories / notes)
 @app.route("/contacts/<int:cid>/edit-fields", methods=["GET", "POST"])
 @login_required
-@role_required("editor", "admin")
+@role_required("editor", "viewedit", "admin")
 def edit_fields(cid):
     import json
     db  = get_request_db()
@@ -522,7 +532,7 @@ def trigger_sync():
 @role_required("admin")
 def change_user_role(uid):
     new_role = request.form.get("role", "").strip()
-    if new_role not in ("readonly", "editor", "admin"):
+    if new_role not in ("readonly", "editor", "viewedit", "admin"):
         return redirect(url_for("admin", tab="users"))
     db  = get_request_db()
     now = datetime.datetime.utcnow().isoformat()
@@ -618,7 +628,7 @@ def api_contacts():
 # ── Bulk category assign ──────────────────────────────────────────────────────
 @app.route("/api/contacts/bulk-assign", methods=["POST"])
 @login_required
-@role_required("editor", "admin")
+@role_required("editor", "viewedit", "admin")
 def bulk_assign():
     data       = request.get_json(force=True)
     ids        = [int(i) for i in data.get("ids", [])]
