@@ -93,9 +93,6 @@
   <div class="card" style="overflow:hidden;">
     <div style="padding:1.25rem 1.25rem .5rem;">
       <div class="section-title">User accounts</div>
-      <p style="font-size:.82rem; color:var(--muted); margin-bottom:.5rem;">
-        Passwords are managed in <code>config.py</code>. Role changes here take effect on next login.
-      </p>
     </div>
     <table>
       <thead>
@@ -119,7 +116,7 @@
             {% if u.username != username %}
             <form method="POST" action="{{ url_for('change_user_role', uid=u.id) }}" style="display:flex; gap:.4rem;">
               <select name="role" style="font-size:.8rem; padding:.25rem .5rem;">
-                {% for r in ['readonly','editor','admin'] %}
+                {% for r in ['readonly','viewedit','editor','admin'] %}
                 <option value="{{ r }}" {% if r == u.role %}selected{% endif %}>{{ r }}</option>
                 {% endfor %}
               </select>
