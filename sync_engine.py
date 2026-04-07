@@ -8,7 +8,8 @@ import re
 import config
 from database import get_db
 from exchangelib import (
-    Account, Configuration, ExtendedProperty, Contact, DELEGATE, HTMLBody, EWSDateTime, UTC
+    Account, Configuration, ExtendedProperty, Contact, DELEGATE, IMPERSONATION,
+    HTMLBody, EWSDateTime, UTC
 )
 from exchangelib.credentials import OAuth2AuthorizationCodeCredentials
 
@@ -250,18 +251,18 @@ def get_account():
     if _cached_account is not None:
         return _cached_account
 
-    from msal import PublicClientApplication
-    app = PublicClientApplication(
-        client_id = config.CLIENT_ID,
-        authority = f"https://login.microsoftonline.com/{config.TENANT_ID}",
+    # Use client credentials (app-only) flow — no browser required.
+    # Requires the App Registration to have the Office 365 Exchange Online
+    # application permission: full_access_as_app (admin-consented).
+    from msal import ConfidentialClientApplication
+    msal_app = ConfidentialClientApplication(
+        client_id         = config.CLIENT_ID,
+        client_credential = config.CLIENT_SECRET,
+        authority         = f"https://login.microsoftonline.com/{config.TENANT_ID}",
     )
-    scopes = ["https://outlook.office365.com/EWS.AccessAsUser.All"]
-    accounts = app.get_accounts()
-    result = None
-    if accounts:
-        result = app.acquire_token_silent(scopes, account=accounts[0])
-    if not result:
-        result = app.acquire_token_interactive(scopes=scopes, port=5001)
+    result = msal_app.acquire_token_for_client(
+        scopes=["https://outlook.office365.com/.default"]
+    )
     if "access_token" not in result:
         raise Exception(f"Auth failed: {result.get('error_description', result)}")
 
@@ -272,15 +273,15 @@ def get_account():
         access_token  = result,
     )
     cfg = Configuration(
-        server    = "outlook.office365.com",
+        server      = "outlook.office365.com",
         credentials = credentials,
-        auth_type = "OAuth 2.0",
+        auth_type   = "OAuth 2.0",
     )
     account = Account(
         primary_smtp_address = config.MAILBOX_EMAIL,
         config               = cfg,
         autodiscover         = False,
-        access_type          = DELEGATE,
+        access_type          = IMPERSONATION,
     )
     _cached_account = account
     return account
