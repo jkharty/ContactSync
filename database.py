@@ -12,8 +12,12 @@ if _db_dir:
     os.makedirs(_db_dir, exist_ok=True)
 
 def get_db():
-    conn = sqlite3.connect(config.DB_PATH)
+    # timeout=30: wait up to 30 s for a write lock instead of failing immediately.
+    conn = sqlite3.connect(config.DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
+    # WAL mode allows concurrent reads during writes — essential when the sync
+    # scheduler thread and web request handlers access the DB simultaneously.
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 def init_db():
