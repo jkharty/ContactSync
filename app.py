@@ -161,8 +161,11 @@ def _contact_where(query, category, is_admin):
         parts.append("""(display_name LIKE ? OR company LIKE ? OR
             email1 LIKE ? OR email2 LIKE ? OR email3 LIKE ? OR
             phone_business LIKE ? OR phone_mobile LIKE ? OR phone_home LIKE ? OR
-            notes_plain LIKE ?)""")
-        params.extend([like] * 9)
+            notes_plain LIKE ? OR
+            address_street LIKE ? OR address_city LIKE ? OR address_state LIKE ? OR
+            home_street LIKE ? OR home_city LIKE ? OR home_state LIKE ? OR
+            other_street LIKE ? OR other_city LIKE ? OR other_state LIKE ?)""")
+        params.extend([like] * 18)
     if category:
         parts.append("categories LIKE ?")
         params.append(f"%{category}%")
@@ -248,7 +251,10 @@ def contacts():
 
     rows = db.execute(f"""
         SELECT id, display_name, company, job_title, email1,
-               phone_business, phone_mobile, phone_home, categories
+               phone_business, phone_mobile, phone_home, categories,
+               home_street, home_city, home_state,
+               address_street, address_city, address_state,
+               other_street, other_city, other_state
         FROM contacts {where_sql}
         ORDER BY {sort_col} {sort_dir_sql}
         LIMIT ? OFFSET ?
@@ -613,7 +619,10 @@ def api_contacts():
 
     rows = db.execute(f"""
         SELECT id, display_name, company, job_title, email1,
-               phone_business, phone_mobile, phone_home, categories
+               phone_business, phone_mobile, phone_home, categories,
+               home_street, home_city, home_state,
+               address_street, address_city, address_state,
+               other_street, other_city, other_state
         FROM contacts {where_sql}
         ORDER BY {sort_col} {sort_dir_sql}
         LIMIT ? OFFSET ?
