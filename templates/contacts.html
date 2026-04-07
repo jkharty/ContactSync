@@ -85,7 +85,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header" style="margin-bottom:.75rem;">
+<div class="page-header" style="margin-bottom:.25rem; min-height:0; padding-top:.25rem;">
   <div></div>
   {% if role in ('editor','admin') %}
   <button id="select-mode-btn" class="btn btn-secondary btn-sm" onclick="toggleSelectMode()">Select</button>

@@ -51,10 +51,11 @@
     text-decoration: none;
     letter-spacing: -.01em;
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     gap: .4rem;
     align-self: flex-end;
     padding-bottom: .65rem;
+    margin-right: 1.5rem;
   }
   .nav-brand span { color: var(--accent); }
   .nav-links { display: flex; gap: .25rem; flex: 1; align-items: flex-end; }
@@ -106,7 +107,7 @@
   .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
 
   /* ── Layout ── */
-  main { flex: 1; padding: 2rem; max-width: 1200px; margin: 0 auto; width: 100%; }
+  main { flex: 1; padding: .4rem 2rem 2rem; max-width: 1200px; margin: 0 auto; width: 100%; }
 
   /* ── Cards ── */
   .card {
@@ -357,7 +358,7 @@
 <nav>
   <a class="nav-brand" href="{{ url_for('contacts') }}">
     <img src="{{ url_for('static', filename='images/invision_logo.jpg') }}" alt="InVision" style="height:26px; width:auto;">
-    <span style="font-family:'DM Serif Display',serif; font-size:1.6rem; margin-bottom:5px;">Sync</span>
+    <span style="font-family:'DM Serif Display',serif; font-size:1.6rem;">Sync</span>
   </a>
   <div class="nav-links">
     <a class="nav-link {% if request.endpoint=='contacts' %}active{% endif %}"
