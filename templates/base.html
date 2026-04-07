@@ -374,21 +374,23 @@
     {% endif %}
     {% endif %}
   </div>
-  <div class="nav-user">
-    <!-- Sync status pill -->
-    <a id="sync-pill" class="sync-pill" href="{{ url_for('admin') }}" title="Sync status">
-      <span class="sync-dot" id="sync-dot"></span>
-      <span id="sync-pill-text">Checking…</span>
-    </a>
-    <span>{{ username }}</span>
-    <span class="badge badge-{{ role }}">{{ role }}</span>
-    <a class="btn-logout" href="{{ url_for('logout') }}">Sign out</a>
-  </div>
 </nav>
 
 <main>
   {% block content %}{% endblock %}
 </main>
+
+<footer style="border-top:1px solid var(--border); background:var(--surface);
+               padding:.6rem 2rem; display:flex; align-items:center; gap:.75rem;
+               font-size:.8rem; flex-wrap:wrap;">
+  <a id="sync-pill" class="sync-pill" href="{{ url_for('admin') }}" title="Sync status">
+    <span class="sync-dot" id="sync-dot"></span>
+    <span id="sync-pill-text">Checking…</span>
+  </a>
+  <span style="color:var(--muted);">{{ username }}</span>
+  <span class="badge badge-{{ role }}">{{ role }}</span>
+  <a class="btn-logout" href="{{ url_for('logout') }}">Sign out</a>
+</footer>
 
 <script>
   document.querySelectorAll('.nav-link').forEach(a => {

@@ -3,64 +3,131 @@
 
 {% block extra_head %}
 <style>
-  .action-icon {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 32px; height: 32px; border-radius: 50%;
-    background: var(--accent-light); color: var(--accent);
-    text-decoration: none; font-size: 1rem; flex-shrink: 0;
-    transition: background .15s;
+  /* ── Action bar ── */
+  .action-bar {
+    display: flex;
+    gap: .75rem;
+    margin-bottom: 1.5rem;
   }
-  .action-icon:hover { background: #dce5fc; }
-  .contact-row {
-    display: flex; align-items: center; gap: .6rem;
+  .act-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: .85rem .5rem;
+    border-radius: 12px;
+    text-decoration: none;
+    font-size: .82rem;
+    font-weight: 500;
+    gap: .3rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+    -webkit-tap-highlight-color: transparent;
+    width: 100%;
   }
-  .contact-row .detail-field { flex: 1; }
-  /* picker dropdown */
-  .picker-wrap { position: relative; display: inline-flex; }
+  .act-icon { font-size: 1.4rem; line-height: 1; }
+  .act-btn-call  { background: #edfaf3; border-color: #a8e6c3; color: var(--success); }
+  .act-btn-call:hover  { background: var(--success); color: #fff; }
+  .act-btn-text  { background: var(--accent-light); border-color: #c8d6fa; color: var(--accent); }
+  .act-btn-text:hover  { background: var(--accent); color: #fff; }
+  .act-btn-email { background: #f4f2ee; border-color: var(--border); color: var(--muted); }
+  .act-btn-email:hover { background: var(--text); color: #fff; }
+
+  /* ── Picker dropdown ── */
+  .picker-wrap { position: relative; flex: 1; display: flex; }
   .picker-menu {
-    display: none; position: absolute; top: 100%; right: 0; z-index: 200;
+    display: none; position: absolute; top: calc(100% + .3rem); left: 0; z-index: 300;
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 8px; box-shadow: var(--shadow);
-    min-width: 200px; padding: .4rem 0; margin-top: .25rem;
+    border-radius: 10px; box-shadow: 0 4px 24px rgba(0,0,0,.12);
+    padding: .4rem 0; min-width: 200px;
   }
   .picker-menu.open { display: block; }
   .picker-menu a {
-    display: block; padding: .5rem 1rem; font-size: .875rem;
-    color: var(--text); text-decoration: none;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .65rem 1rem; font-size: .875rem;
+    color: var(--text); text-decoration: none; gap: .75rem;
   }
   .picker-menu a:hover { background: var(--accent-light); color: var(--accent); }
-  .card-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: .75rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border);
+  .picker-label { font-size: .72rem; color: var(--muted); flex-shrink: 0; }
+
+  /* ── Accordion ── */
+  .accordion { display: flex; flex-direction: column; gap: .65rem; }
+  .acc-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
   }
-  .card-header .section-title { margin: 0; padding: 0; border: none; }
-  .addr-block { font-size: .875rem; line-height: 1.7; color: var(--text); margin-bottom: .75rem; }
-  .addr-block:last-child { margin-bottom: 0; }
-  .addr-label { font-size: .72rem; font-weight: 500; text-transform: uppercase;
-                letter-spacing: .05em; color: var(--muted); margin-bottom: .1rem; }
-  .addr-label-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:.1rem; }
-  .map-link { font-size:.72rem; color:var(--accent); text-decoration:none; }
-  .map-link:hover { text-decoration:underline; }
-  /* copy button */
+  .acc-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .9rem 1.25rem; cursor: pointer; user-select: none;
+    -webkit-tap-highlight-color: transparent; gap: 1rem;
+    min-height: 52px;
+  }
+  .acc-header:hover { background: #faf9f7; }
+  .acc-title {
+    font-size: .8rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+  }
+  .acc-right { display: flex; align-items: center; gap: .65rem; flex-shrink: 0; }
+  .acc-chevron { font-size: .7rem; color: var(--muted); transition: transform .2s; line-height: 1; }
+  .acc-card.open .acc-chevron { transform: rotate(180deg); }
+  .acc-body {
+    display: none; padding: .25rem 1.25rem 1.25rem;
+    border-top: 1px solid var(--border);
+  }
+  .acc-card.open .acc-body { display: block; }
+
+  /* ── Detail fields ── */
+  .detail-field { margin-top: .75rem; }
+  .detail-field label {
+    display: block; font-size: .72rem; font-weight: 500;
+    color: var(--muted); letter-spacing: .05em; text-transform: uppercase;
+    margin-bottom: .2rem;
+  }
+  .detail-field p { font-size: .9rem; }
+
+  /* ── Contact row (number + copy) ── */
+  .contact-row { display: flex; align-items: flex-start; gap: .5rem; }
+  .contact-row .detail-field { flex: 1; margin-top: .75rem; }
   .copy-btn {
-    background: none; border: none; cursor: pointer; padding: .1rem .3rem;
-    color: var(--muted); font-size: .8rem; border-radius: 4px; line-height:1;
-    transition: background .15s, color .15s;
+    background: none; border: none; cursor: pointer; padding: .15rem .35rem;
+    color: var(--muted); font-size: .78rem; border-radius: 4px; line-height: 1;
+    transition: background .15s, color .15s; margin-top: .1rem;
   }
   .copy-btn:hover { background: var(--accent-light); color: var(--accent); }
   .copy-btn.copied { color: var(--success); }
+
+  /* ── Address ── */
+  .addr-block { font-size: .875rem; line-height: 1.7; margin-top: .75rem; }
+  .addr-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: .1rem; }
+  .addr-label { font-size: .72rem; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .map-link { font-size: .72rem; color: var(--accent); text-decoration: none; }
+  .map-link:hover { text-decoration: underline; }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Back + actions -->
-<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem;">
+
+<!-- Back + edit + delete -->
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.25rem; gap:.5rem;">
   <a href="{{ url_for('contacts') }}" class="btn btn-secondary btn-sm">&#8592; All Contacts</a>
-  {% if role == 'admin' %}
-  <button class="btn btn-danger btn-sm" onclick="document.getElementById('delete-modal').style.display='flex'">
-    🗑 Delete Contact
-  </button>
-  {% endif %}
+  <div style="display:flex; gap:.5rem;">
+    {% if role in ('editor','admin') %}
+    <a href="{{ url_for('edit_fields', cid=c.id) }}" class="btn btn-secondary btn-sm">✏ Edit</a>
+    {% endif %}
+    {% if role == 'admin' %}
+    <button class="btn btn-danger btn-sm" onclick="document.getElementById('delete-modal').style.display='flex'">
+      🗑 Delete
+    </button>
+    {% endif %}
+  </div>
 </div>
 
 {% if role == 'admin' %}
@@ -80,7 +147,8 @@
       <form method="POST" action="{{ url_for('delete_contact', cid=c.id) }}" style="flex:1;">
         <button type="submit" class="btn btn-danger" style="width:100%;">Yes, delete permanently</button>
       </form>
-      <button class="btn btn-secondary" onclick="document.getElementById('delete-modal').style.display='none'" style="flex:1;">
+      <button class="btn btn-secondary"
+              onclick="document.getElementById('delete-modal').style.display='none'" style="flex:1;">
         Cancel
       </button>
     </div>
@@ -88,9 +156,9 @@
 </div>
 {% endif %}
 
-<!-- Name header -->
-<div style="margin-bottom:1.5rem;">
-  <h1 style="font-family:'DM Serif Display',serif; font-size:2rem; font-weight:400;">
+<!-- Name + Identity header -->
+<div class="card" style="padding:1.25rem; margin-bottom:1.25rem;">
+  <h1 style="font-family:'DM Serif Display',serif; font-size:2rem; font-weight:400; line-height:1.1;">
     {{ c.display_name or '(no name)' }}
   </h1>
   {% if c.job_title or c.company %}
@@ -109,171 +177,147 @@
   {% endif %}
 </div>
 
-<div style="display:grid; grid-template-columns:1fr 340px; gap:1.25rem; align-items:start;">
+{# ── Collect phones and emails once for reuse ── #}
+{% set phones = [] %}
+{% if c.phone_business %}{% set _ = phones.append(('Business', c.phone_business)) %}{% endif %}
+{% if c.phone_mobile %}{% set _ = phones.append(('Mobile', c.phone_mobile)) %}{% endif %}
+{% if c.phone_home %}{% set _ = phones.append(('Home', c.phone_home)) %}{% endif %}
+{% set emails = [] %}
+{% if c.email1 %}{% set _ = emails.append(c.email1) %}{% endif %}
+{% if c.email2 %}{% set _ = emails.append(c.email2) %}{% endif %}
+{% if c.email3 %}{% set _ = emails.append(c.email3) %}{% endif %}
 
-  <!-- Left: Notes -->
-  <div class="card" style="padding:1.5rem;">
-    <div class="card-header">
-      <div class="section-title">Notes</div>
-      {% if role in ('editor','admin') %}
-      <a href="{{ url_for('edit_fields', cid=c.id) }}?section=notes" class="btn btn-secondary btn-sm">✏ Edit</a>
+<!-- Action bar -->
+{% if phones or emails %}
+<div class="action-bar">
+
+  {# Call — picker if multiple phones #}
+  {% if phones %}
+  {% if phones|length == 1 %}
+  <a class="act-btn act-btn-call" href="tel:{{ phones[0][1] }}">
+    <span class="act-icon">📞</span>Call
+  </a>
+  {% else %}
+  <div class="picker-wrap">
+    <button class="act-btn act-btn-call" onclick="togglePicker(this)" type="button">
+      <span class="act-icon">📞</span>Call
+    </button>
+    <div class="picker-menu">
+      {% for label, num in phones %}
+      <a href="tel:{{ num }}">
+        <span>{{ num }}</span><span class="picker-label">{{ label }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {# Text — picker shows all numbers #}
+  {% if phones %}
+  {% if phones|length == 1 %}
+  <a class="act-btn act-btn-text" href="sms:{{ phones[0][1] }}">
+    <span class="act-icon">💬</span>Text
+  </a>
+  {% else %}
+  <div class="picker-wrap">
+    <button class="act-btn act-btn-text" onclick="togglePicker(this)" type="button">
+      <span class="act-icon">💬</span>Text
+    </button>
+    <div class="picker-menu">
+      {% for label, num in phones %}
+      <a href="sms:{{ num }}">
+        <span>{{ num }}</span><span class="picker-label">{{ label }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {# Email — picker if multiple addresses #}
+  {% if emails %}
+  {% if emails|length == 1 %}
+  <a class="act-btn act-btn-email" href="mailto:{{ emails[0] }}">
+    <span class="act-icon">✉</span>Email
+  </a>
+  {% else %}
+  <div class="picker-wrap">
+    <button class="act-btn act-btn-email" onclick="togglePicker(this)" type="button">
+      <span class="act-icon">✉</span>Email
+    </button>
+    <div class="picker-menu">
+      {% for e in emails %}
+      <a href="mailto:{{ e }}">{{ e }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+
+</div>
+{% endif %}
+
+<!-- Accordion cards -->
+<div class="accordion">
+
+  {# ── Phone & Email ── #}
+  <div class="acc-card" id="acc-contact">
+    <div class="acc-header" onclick="toggleAcc('acc-contact')">
+      <span class="acc-title">Phone &amp; Email</span>
+      <span class="acc-chevron">&#9660;</span>
+    </div>
+    <div class="acc-body">
+      {% if emails %}
+      <div class="contact-row">
+        <div class="detail-field">
+          <label>Email{{ 's' if emails|length > 1 else '' }}</label>
+          {% for e in emails %}
+          <p style="display:flex; align-items:center; gap:.4rem;">
+            <a href="mailto:{{ e }}" style="color:var(--accent)">{{ e }}</a>
+            <button class="copy-btn" onclick="copyText('{{ e }}', this)" title="Copy">⎘</button>
+          </p>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      {% if phones %}
+      <div class="contact-row">
+        <div class="detail-field">
+          <label>Phone</label>
+          {% for label, num in phones %}
+          <p style="display:flex; align-items:center; gap:.4rem;">
+            <span>{{ num }} <span style="color:var(--muted); font-size:.8rem;">{{ label }}</span></span>
+            <button class="copy-btn" onclick="copyText('{{ num }}', this)" title="Copy">⎘</button>
+          </p>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      {% if not emails and not phones %}
+      <p style="color:var(--muted); font-size:.85rem; font-style:italic; margin-top:.75rem;">No contact info stored.</p>
       {% endif %}
     </div>
-    {% if c.notes_html %}
-    <div class="notes-body">{{ c.notes_html | safe }}</div>
-    {% else %}
-    <p style="color:var(--muted); font-style:italic; font-size:.9rem;">No notes.</p>
-    {% endif %}
   </div>
 
-  <!-- Right column -->
-  <div style="display:flex; flex-direction:column; gap:1rem;">
-
-    <!-- Identity -->
-    <div class="card" style="padding:1.25rem;">
-      <div class="card-header">
-        <div class="section-title">Identity</div>
-        {% if role in ('editor','admin') %}
-        <a href="{{ url_for('edit_fields', cid=c.id) }}?section=identity" class="btn btn-secondary btn-sm">✏ Edit</a>
-        {% endif %}
-      </div>
-      <div style="display:flex; flex-direction:column; gap:.6rem;">
-        {% if c.first_name or c.last_name %}
-        <div class="detail-field">
-          <label>Name</label>
-          <p>{{ c.first_name }} {{ c.last_name }}</p>
-        </div>
-        {% endif %}
-        {% if c.company %}
-        <div class="detail-field">
-          <label>Company</label>
-          <p>{{ c.company }}</p>
-        </div>
-        {% endif %}
-        {% if c.job_title %}
-        <div class="detail-field">
-          <label>Job title</label>
-          <p>{{ c.job_title }}</p>
-        </div>
-        {% endif %}
-        <div class="detail-field">
-          <label>Categories</label>
-          {% if c.categories %}
-          <div style="display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.2rem;">
-            {% for cat in c.categories.split('|') %}{% if cat.strip() %}
-            <span class="chip">{{ cat.strip() }}</span>
-            {% endif %}{% endfor %}
-          </div>
-          {% else %}
-          <p style="color:var(--muted); font-style:italic; font-size:.85rem;">None</p>
-          {% endif %}
-        </div>
-        {% if not (c.first_name or c.last_name or c.company or c.job_title) %}
-        <p style="color:var(--muted); font-size:.85rem; font-style:italic;">No identity info.</p>
-        {% endif %}
-      </div>
+  {# ── Address ── #}
+  {% set has_biz   = c.address_street or c.address_city %}
+  {% set has_home  = c.home_street or c.home_city %}
+  {% set has_other = c.other_street or c.other_city %}
+  <div class="acc-card" id="acc-address">
+    <div class="acc-header" onclick="toggleAcc('acc-address')">
+      <span class="acc-title">Address</span>
+      <span class="acc-chevron">&#9660;</span>
     </div>
-
-    <!-- Contact Info -->
-    <div class="card" style="padding:1.25rem;">
-      <div class="card-header">
-        <div class="section-title">Contact info</div>
-        {% if role in ('editor','admin') %}
-        <a href="{{ url_for('edit_fields', cid=c.id) }}?section=contact" class="btn btn-secondary btn-sm">✏ Edit</a>
-        {% endif %}
-      </div>
-      <div style="display:flex; flex-direction:column; gap:.75rem;">
-
-        {# ── Emails ── #}
-        {% set emails = [] %}
-        {% if c.email1 %}{% set _ = emails.append(c.email1) %}{% endif %}
-        {% if c.email2 %}{% set _ = emails.append(c.email2) %}{% endif %}
-        {% if c.email3 %}{% set _ = emails.append(c.email3) %}{% endif %}
-
-        {% if emails %}
-        <div class="contact-row">
-          <div class="detail-field">
-            <label>Email{{ 's' if emails|length > 1 else '' }}</label>
-            {% for e in emails %}
-            <p style="display:flex; align-items:center; gap:.4rem;">
-              <a href="mailto:{{ e }}" style="color:var(--accent)">{{ e }}</a>
-              <button class="copy-btn" onclick="copyText('{{ e }}', this)" title="Copy">⎘</button>
-            </p>
-            {% endfor %}
-          </div>
-          {% if emails|length == 1 %}
-          <a class="action-icon" href="mailto:{{ emails[0] }}" title="Send email">✉</a>
-          {% else %}
-          <div class="picker-wrap">
-            <button class="action-icon" onclick="togglePicker(this)" title="Send email" type="button">✉</button>
-            <div class="picker-menu">
-              {% for e in emails %}<a href="mailto:{{ e }}">{{ e }}</a>{% endfor %}
-            </div>
-          </div>
-          {% endif %}
-        </div>
-        {% endif %}
-
-        {# ── Phones ── #}
-        {% set phones = [] %}
-        {% if c.phone_business %}{% set _ = phones.append(('Business', c.phone_business)) %}{% endif %}
-        {% if c.phone_mobile %}{% set _ = phones.append(('Mobile', c.phone_mobile)) %}{% endif %}
-        {% if c.phone_home %}{% set _ = phones.append(('Home', c.phone_home)) %}{% endif %}
-
-        {% if phones %}
-        <div class="contact-row">
-          <div class="detail-field">
-            <label>Phone</label>
-            {% for label, num in phones %}
-            <p style="display:flex; align-items:center; gap:.4rem;">
-              <span>{{ num }} <span style="color:var(--muted); font-size:.8rem;">{{ label }}</span></span>
-              <button class="copy-btn" onclick="copyText('{{ num }}', this)" title="Copy">⎘</button>
-            </p>
-            {% endfor %}
-          </div>
-          <div style="display:flex; flex-direction:column; gap:.4rem; align-items:center;">
-            {% if phones|length == 1 %}
-            <a class="action-icon" href="tel:{{ phones[0][1] }}" title="Call">📞</a>
-            {% else %}
-            <div class="picker-wrap">
-              <button class="action-icon" onclick="togglePicker(this)" title="Call" type="button">📞</button>
-              <div class="picker-menu">
-                {% for label, num in phones %}<a href="tel:{{ num }}">{{ label }}: {{ num }}</a>{% endfor %}
-              </div>
-            </div>
-            {% endif %}
-            {% if c.phone_mobile %}
-            <a class="action-icon" href="sms:{{ c.phone_mobile }}" title="Text {{ c.phone_mobile }}" style="font-size:.9rem;">💬</a>
-            {% endif %}
-          </div>
-        </div>
-        {% endif %}
-
-        {% if not emails and not phones %}
-        <p style="color:var(--muted); font-size:.85rem; font-style:italic;">No contact info stored.</p>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- Address -->
-    {% set has_biz   = c.address_street or c.address_city %}
-    {% set has_home  = c.home_street or c.home_city %}
-    {% set has_other = c.other_street or c.other_city %}
-    {% if has_biz or has_home or has_other %}
-    <div class="card" style="padding:1.25rem;">
-      <div class="card-header">
-        <div class="section-title">Address</div>
-        {% if role in ('editor','admin') %}
-        <a href="{{ url_for('edit_fields', cid=c.id) }}?section=address" class="btn btn-secondary btn-sm">✏ Edit</a>
-        {% endif %}
-      </div>
-
+    <div class="acc-body">
+      {% if has_biz or has_home or has_other %}
       {% macro addr_block(label, street, city, state, zip, country) %}
       {% set q = [street, city, state, zip, country] | select | join(', ') %}
       <div class="addr-block">
         <div class="addr-label-row">
           <span class="addr-label">{{ label }}</span>
-          {% if q %}<a class="map-link" href="https://maps.google.com/?q={{ q | urlencode }}" target="_blank" rel="noopener">📍 Map</a>{% endif %}
+          {% if q %}<a class="map-link" href="https://maps.google.com/?q={{ q | urlencode }}"
+             target="_blank" rel="noopener">📍 Map</a>{% endif %}
         </div>
         {% if street %}<div>{{ street }}</div>{% endif %}
         {% if city or state or zip %}
@@ -282,25 +326,57 @@
         {% if country %}<div>{{ country }}</div>{% endif %}
       </div>
       {% endmacro %}
-
       {% if has_biz %}{{ addr_block('Business', c.address_street, c.address_city, c.address_state, c.address_zip, c.address_country) }}{% endif %}
       {% if has_home %}{{ addr_block('Home', c.home_street, c.home_city, c.home_state, c.home_zip, c.home_country) }}{% endif %}
       {% if has_other %}{{ addr_block('Other', c.other_street, c.other_city, c.other_state, c.other_zip, c.other_country) }}{% endif %}
-    </div>
-    {% endif %}
-
-    <!-- Sync info -->
-    <div style="font-size:.75rem; color:var(--muted); padding:.5rem;">
-      Last synced: {{ c.synced_at[:19].replace('T',' ') if c.synced_at else 'unknown' }}
+      {% else %}
+      <p style="color:var(--muted); font-size:.85rem; font-style:italic; margin-top:.75rem;">No address on file.</p>
+      {% endif %}
     </div>
   </div>
+
+  {# ── Notes ── #}
+  <div class="acc-card" id="acc-notes">
+    <div class="acc-header" onclick="toggleAcc('acc-notes')">
+      <span class="acc-title">Notes</span>
+      <span class="acc-chevron">&#9660;</span>
+    </div>
+    <div class="acc-body">
+      {% if c.notes_html %}
+      <div class="notes-body" style="padding-top:.5rem;">{{ c.notes_html | safe }}</div>
+      {% else %}
+      <p style="color:var(--muted); font-style:italic; font-size:.9rem; margin-top:.75rem;">No notes.</p>
+      {% endif %}
+    </div>
+  </div>
+
 </div>
+
+<div style="font-size:.75rem; color:var(--muted); padding:.75rem .25rem; margin-top:.5rem;">
+  Last synced: {{ c.synced_at[:19].replace('T',' ') if c.synced_at else 'unknown' }}
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
+function toggleAcc(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+function togglePicker(btn) {
+  const menu = btn.nextElementSibling;
+  const isOpen = menu.classList.contains('open');
+  document.querySelectorAll('.picker-menu.open').forEach(m => m.classList.remove('open'));
+  if (!isOpen) menu.classList.add('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.picker-wrap')) {
+    document.querySelectorAll('.picker-menu.open').forEach(m => m.classList.remove('open'));
+  }
+});
+
 function copyText(text, btn) {
-  // Try modern clipboard API first; fall back for non-HTTPS LAN access
   const doFallback = () => {
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -321,19 +397,5 @@ function copyText(text, btn) {
     doFallback(); finish();
   }
 }
-
-function togglePicker(btn) {
-  const menu = btn.nextElementSibling;
-  const isOpen = menu.classList.contains('open');
-  // Close all open pickers first
-  document.querySelectorAll('.picker-menu.open').forEach(m => m.classList.remove('open'));
-  if (!isOpen) menu.classList.add('open');
-}
-// Close pickers when clicking outside
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.picker-wrap')) {
-    document.querySelectorAll('.picker-menu.open').forEach(m => m.classList.remove('open'));
-  }
-});
 </script>
 {% endblock %}

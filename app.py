@@ -365,7 +365,8 @@ def edit_fields(cid):
             }
             first = field_data["first_name"]
             last  = field_data["last_name"]
-            display_name = f"{first} {last}".strip() if (first or last) else row["display_name"]
+            company = field_data.get("company", "").strip()
+            display_name = f"{first} {last}".strip() if (first or last) else (company or row["display_name"])
             db.execute("""
                 UPDATE contacts SET
                     first_name=:first_name, last_name=:last_name, display_name=:display_name,
@@ -667,6 +668,6 @@ def bulk_assign():
 
 # ── Startup ───────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    print(f"\n✓ Contact Sync running at http://localhost:{config.WEB_PORT}")
+    print(f"\n* Contact Sync running at http://localhost:{config.WEB_PORT}")
     print(f"  Access from other PCs at http://YOUR-PC-NAME:{config.WEB_PORT}\n")
     app.run(host="0.0.0.0", port=config.WEB_PORT, debug=False)

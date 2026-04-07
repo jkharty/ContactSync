@@ -330,7 +330,7 @@ def contact_to_dict(c):
         "change_key":      s(c.changekey),
         "first_name":      s(c.given_name),
         "last_name":       s(c.surname),
-        "display_name":    s(c.display_name),
+        "display_name":    s(c.display_name) or s(c.company_name),
         "company":         s(c.company_name),
         "job_title":       s(c.job_title),
         "email1":          ea(0),
