@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}Contacts{% endblock %} — ContactSync</title>
+<title>{% block title %}Contacts{% endblock %} — InVision Sync</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -46,7 +46,6 @@
     z-index: 100;
   }
   .nav-brand {
-    font-family: 'DM Serif Display', serif;
     font-size: 1.2rem;
     color: var(--text);
     text-decoration: none;
@@ -353,7 +352,8 @@
 
 <nav>
   <a class="nav-brand" href="{{ url_for('contacts') }}">
-    &#9632; Contact<span>Sync</span>
+    <img src="{{ url_for('static', filename='images/invision_logo.jpg') }}" alt="InVision" style="height:32px; width:auto; vertical-align:middle; margin-right:.35rem;">
+    <span>Sync</span>
   </a>
   <div class="nav-links">
     <a class="nav-link {% if request.endpoint=='contacts' %}active{% endif %}"
