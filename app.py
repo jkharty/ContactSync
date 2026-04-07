@@ -587,6 +587,15 @@ def resolve_error(eid):
     db.commit()
     return redirect(url_for("admin", tab="errors"))
 
+@app.route("/admin/writes/retry", methods=["POST"])
+@login_required
+@role_required("admin")
+def retry_failed_writes():
+    db = get_request_db()
+    db.execute("UPDATE pending_writes SET status='pending' WHERE status='error'")
+    db.commit()
+    return redirect(url_for("admin", tab="errors"))
+
 # ── API for search typeahead ──────────────────────────────────────────────────
 @app.route("/api/search")
 @login_required

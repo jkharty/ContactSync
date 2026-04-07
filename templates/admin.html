@@ -243,19 +243,19 @@
       <div class="section-title" style="{% if errors %}color:var(--danger);border-color:#f5c6c3;{% endif %}">
         {% if errors %}⚠ {{ errors|length }} unresolved error{{ 's' if errors|length != 1 else '' }}{% else %}Contact sync errors{% endif %}
       </div>
-      {% if errors %}
-      <span style="font-size:.75rem; color:var(--muted);">Open each in Outlook and re-save to fix</span>
-      {% endif %}
+      <form method="POST" action="{{ url_for('retry_failed_writes') }}" style="margin:0;">
+        <button type="submit" class="btn btn-secondary btn-sm" title="Reset any failed write-backs so they retry on next sync">Retry failed writes</button>
+      </form>
     </div>
     {% if errors %}
     <table>
       <thead>
-        <tr><th>Contact</th><th>Error</th><th>Detail</th><th>Last seen</th><th></th></tr>
+        <tr><th>Contact</th><th>Type</th><th>Detail</th><th>Last seen</th><th></th></tr>
       </thead>
       <tbody>
         {% for e in errors %}
         <tr>
-          <td style="font-size:.8rem; color:var(--muted); font-family:monospace;">{{ e.exchange_id[:30] if e.exchange_id else '—' }}…</td>
+          <td><strong>{{ e.display_name or '—' }}</strong></td>
           <td><span class="chip" style="color:var(--danger);border-color:#f5c6c3;">{{ e.error_type }}</span></td>
           <td style="font-size:.8rem;">{{ e.error_detail }}</td>
           <td style="font-size:.78rem; color:var(--muted);">{{ e.last_seen[:19].replace('T',' ') }}</td>

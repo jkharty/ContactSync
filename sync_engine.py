@@ -804,6 +804,11 @@ def _process_pending_writes(db, account):
             db.execute(
                 "UPDATE pending_writes SET status='error' WHERE id=?", (row["id"],)
             )
+            contact = db.execute(
+                "SELECT display_name FROM contacts WHERE exchange_id=?", (row["exchange_id"],)
+            ).fetchone()
+            display_name = contact["display_name"] if contact else (row["exchange_id"] or "unknown")
+            _log_contact_error(db, row["exchange_id"], display_name, "write_back", str(e))
 
 def delete_contact(exchange_id, display_name, deleted_by):
     """Delete a contact from both Exchange and the local database."""
