@@ -46,7 +46,11 @@
   .contact-card:last-child { border-bottom: none; }
   .contact-card:hover { background: #faf9f7; }
 
-  .contact-card-cb { flex-shrink: 0; }
+  .contact-card-cb {
+    flex-shrink: 0;
+    display: none;  /* hidden until select mode */
+  }
+  .select-mode .contact-card-cb { display: block; }
   .row-cb { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
 
   .contact-card-info { flex: 1; min-width: 0; }
@@ -89,6 +93,9 @@
       {%- if category %} in "{{ category }}"{% endif %}
     </p>
   </div>
+  {% if role in ('editor','admin') %}
+  <button id="select-mode-btn" class="btn btn-secondary btn-sm" onclick="toggleSelectMode()">Select</button>
+  {% endif %}
 </div>
 
 <!-- Search + category filter -->
@@ -193,7 +200,7 @@
 <div id="bulk-bar">
   <span class="bulk-count"><span id="bulk-count-num">0</span> selected</span>
   <button class="bulk-assign-btn" onclick="openCatModal()">Assign category…</button>
-  <button class="bulk-cancel-btn" onclick="clearSelection()">Cancel</button>
+  <button class="bulk-cancel-btn" onclick="toggleSelectMode()">Cancel</button>
 </div>
 
 <!-- Category assign modal -->
@@ -405,6 +412,25 @@
     document.querySelectorAll('.contact-cb').forEach(cb => cb.checked = false);
     const bar = document.getElementById('bulk-bar');
     if (bar) bar.classList.remove('visible');
+  };
+
+  let selectModeActive = false;
+  window.toggleSelectMode = function() {
+    selectModeActive = !selectModeActive;
+    const list = document.getElementById('contacts-tbody');
+    const btn  = document.getElementById('select-mode-btn');
+    if (selectModeActive) {
+      list.classList.add('select-mode');
+      btn.textContent = 'Cancel';
+      btn.classList.add('btn-primary');
+      btn.classList.remove('btn-secondary');
+    } else {
+      list.classList.remove('select-mode');
+      btn.textContent = 'Select';
+      btn.classList.remove('btn-primary');
+      btn.classList.add('btn-secondary');
+      clearSelection();
+    }
   };
 
   window.openCatModal = function() {
