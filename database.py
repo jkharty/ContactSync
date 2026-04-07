@@ -1,8 +1,15 @@
 """
 database.py — creates and manages the SQLite database.
 """
+import os
 import sqlite3
 import config
+
+# Ensure the directory for the database file exists (required on Azure App Services
+# where /home/data/ is not created automatically).
+_db_dir = os.path.dirname(config.DB_PATH)
+if _db_dir:
+    os.makedirs(_db_dir, exist_ok=True)
 
 def get_db():
     conn = sqlite3.connect(config.DB_PATH)
