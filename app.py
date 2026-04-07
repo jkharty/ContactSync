@@ -536,9 +536,16 @@ def admin():
     errors  = db.execute(
         "SELECT * FROM sync_errors WHERE resolved=0 ORDER BY last_seen DESC"
     ).fetchall()
+    conflicts_pending  = db.execute(
+        "SELECT * FROM conflicts WHERE status='pending' ORDER BY detected_at DESC"
+    ).fetchall()
+    conflicts_resolved = db.execute(
+        "SELECT * FROM conflicts WHERE status='resolved' ORDER BY resolved_at DESC LIMIT 20"
+    ).fetchall()
     return render_template("admin.html",
         logs=logs, total=total, pending=pending,
-        users=users, history=history, errors=errors, tab=tab,
+        users=users, history=history, errors=errors,
+        conflicts_pending=conflicts_pending, conflicts_resolved=conflicts_resolved, tab=tab,
         role=session["role"], username=session["username"])
 
 @app.route("/admin/sync", methods=["POST"])

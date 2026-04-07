@@ -292,7 +292,7 @@
     } else {
       tbody.innerHTML = data.contacts.map(c => {
         const cb = HAS_CB
-          ? `<div class="contact-card-cb" onclick="event.stopPropagation();event.preventDefault()">
+          ? `<div class="contact-card-cb" onclick="event.stopPropagation()">
                <input type="checkbox" class="row-cb contact-cb" data-id="${c.id}" title="Select">
              </div>` : '';
         const addr = addrLine(c);

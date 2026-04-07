@@ -72,33 +72,6 @@
     color: var(--accent);
     border-bottom-color: var(--accent);
   }
-  /* ── Admin dropdown ── */
-  .nav-dropdown { position: relative; }
-  .nav-dropdown-menu {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-top: none;
-    border-radius: 0 0 8px 8px;
-    box-shadow: var(--shadow);
-    min-width: 160px;
-    z-index: 200;
-  }
-  .nav-dropdown:hover .nav-dropdown-menu { display: block; }
-  .nav-dropdown-menu a {
-    display: block;
-    padding: .6rem 1rem;
-    color: var(--muted);
-    text-decoration: none;
-    font-size: .875rem;
-    font-weight: 500;
-    white-space: nowrap;
-  }
-  .nav-dropdown-menu a:hover { color: var(--accent); background: var(--accent-light); }
-  .nav-dropdown-menu a:last-child { border-radius: 0 0 8px 8px; }
   .nav-user {
     display: flex;
     align-items: center;
@@ -308,7 +281,6 @@
     nav { padding: 0 .85rem; gap: .75rem; height: auto; min-height: 52px; flex-wrap: wrap; padding-top: .4rem; padding-bottom: .4rem; align-items: center; }
     .nav-links { gap: .1rem; align-items: center; }
     .nav-link { padding: .3rem .55rem; font-size: .8rem; border-radius: 6px; border-bottom: none; }
-    .nav-dropdown-menu { position: fixed; top: auto; }
     .nav-user { gap: .45rem; font-size: .75rem; }
     .nav-user span:first-of-type { display: none; } /* hide username text on mobile */
     .page-header h1 { font-size: 1.4rem; }
@@ -391,17 +363,8 @@
        href="{{ url_for('contacts') }}">Contacts</a>
     {% if role == 'admin' %}
     {% set conflict_count = get_pending_conflicts() %}
-    <div class="nav-dropdown">
-      <a class="nav-link {% if request.endpoint in ['admin','conflicts'] %}active{% endif %}"
-         href="{{ url_for('admin') }}">Admin ▾</a>
-      <div class="nav-dropdown-menu">
-        <a href="{{ url_for('admin') }}" {% if request.endpoint=='admin' %}style="color:var(--accent);"{% endif %}>Dashboard</a>
-        <a href="{{ url_for('conflicts') }}"
-           {% if request.endpoint=='conflicts' %}style="color:var(--accent);"{% elif conflict_count > 0 %}style="color:var(--warning);"{% endif %}>
-          Conflicts{% if conflict_count > 0 %} ⚠ {{ conflict_count }}{% endif %}
-        </a>
-      </div>
-    </div>
+    <a class="nav-link {% if request.endpoint=='admin' %}active{% endif %}"
+       href="{{ url_for('admin') }}">Admin{% if conflict_count > 0 %} <span style="color:var(--warning);">⚠</span>{% endif %}</a>
     {% endif %}
   </div>
 </nav>
