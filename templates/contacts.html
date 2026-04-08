@@ -306,6 +306,8 @@
   const pagination  = document.getElementById('pagination-wrap');
   let debounceTimer = null;
   let currentSort   = { key: '{{ sort_key }}', dir: '{{ sort_dir }}' };
+  // Store the full list of all categories (not filtered by search results)
+  let allCategories = Array.from(catSelect.options).map(o => o.value).filter(v => v);
 
   function addrLine(c) {
     const street = c.home_street || c.address_street || c.other_street || '';
@@ -335,13 +337,9 @@
         `<option value="${c}"${c === cat ? ' selected' : ''}>${c}</option>`
       ).join('');
 
-    const modalSel = document.getElementById('modal-cat-select');
-    if (modalSel) {
-      const prev = modalSel.value;
-      modalSel.innerHTML = '<option value="">— choose —</option>' +
-        data.available_categories.map(c =>
-          `<option value="${c}"${c === prev ? ' selected' : ''}>${c}</option>`
-        ).join('');
+    // Update allCategories if we got new ones from the API (on first load)
+    if (data.available_categories.length > allCategories.length) {
+      allCategories = data.available_categories;
     }
 
     // Category abbreviation mapping
@@ -568,6 +566,15 @@
   document.getElementById('cat-modal-bg')?.addEventListener('click', function(e) {
     if (e.target === this) closeCatModal();
   });
+
+  // Initialize modal with all categories (not search-filtered)
+  const modalSel = document.getElementById('modal-cat-select');
+  if (modalSel && allCategories.length > 0) {
+    modalSel.innerHTML = '<option value="">— choose —</option>' +
+      allCategories.map(c =>
+        `<option value="${c}">${c}</option>`
+      ).join('');
+  }
 
 })();
 </script>
