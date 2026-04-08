@@ -175,23 +175,66 @@ _SORT_COLS = {
     "email":   "email1 COLLATE NOCASE",
 }
 
+def _build_word_prefix_pattern(query_words):
+    """Build SQL pattern for word-prefix matching.
+
+    For each word in the query, generate a pattern that matches it at the
+    start of the field or after whitespace (word boundary).
+
+    Example: ["Rob", "Clas"] matches "Robert B. Clasen" because:
+      - "Robert B. Clasen" starts with "Rob" (matches Rob%)
+      - "Robert B. Clasen" contains " Clas" (matches % Clas%)
+    """
+    patterns = []
+    params = []
+    for word in query_words:
+        # Match at start OR after space
+        patterns.append(f"(field LIKE ? OR field LIKE ?)")
+        params.extend([f"{word}%", f"% {word}%"])
+    return patterns, params
+
 def _contact_where(query, category, is_admin):
     parts, params = [], []
     if not is_admin:
         parts.append("(categories IS NULL OR categories NOT LIKE '%PERSONAL%')")
+
     if query:
-        like = f"%{query}%"
-        parts.append("""(display_name LIKE ? OR company LIKE ? OR
-            email1 LIKE ? OR email2 LIKE ? OR email3 LIKE ? OR
-            phone_business LIKE ? OR phone_mobile LIKE ? OR phone_home LIKE ? OR
-            notes_plain LIKE ? OR
-            address_street LIKE ? OR address_city LIKE ? OR address_state LIKE ? OR
-            home_street LIKE ? OR home_city LIKE ? OR home_state LIKE ? OR
-            other_street LIKE ? OR other_city LIKE ? OR other_state LIKE ?)""")
-        params.extend([like] * 18)
+        # Split query into words for word-prefix matching
+        query_words = query.split()
+
+        if query_words:
+            # Build word-prefix patterns for searchable fields
+            fields = [
+                "display_name", "company", "email1", "email2", "email3",
+                "phone_business", "phone_mobile", "phone_home", "notes_plain",
+                "address_street", "address_city", "address_state",
+                "home_street", "home_city", "home_state",
+                "other_street", "other_city", "other_state"
+            ]
+
+            field_conditions = []
+            for field in fields:
+                field_patterns = []
+                field_params = []
+                for word in query_words:
+                    # Each word must match at start of field or after whitespace
+                    field_patterns.append(f"({field} LIKE ? OR {field} LIKE ?)")
+                    field_params.extend([f"{word}%", f"% {word}%"])
+
+                # All words must match in this field
+                if field_patterns:
+                    field_condition = " AND ".join(field_patterns)
+                    field_conditions.append(f"({field_condition})")
+                    params.extend(field_params)
+
+            # Any of the fields can match
+            if field_conditions:
+                parts.append("(" + " OR ".join(field_conditions) + ")")
+
     if category:
         parts.append("categories LIKE ?")
         params.append(f"%{category}%")
+
     where = ("WHERE " + " AND ".join(parts)) if parts else ""
     return where, params
 
