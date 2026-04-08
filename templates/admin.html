@@ -82,12 +82,15 @@
 
   <div class="card" style="padding:1.25rem;">
     <div class="section-title">Sync controls</div>
+    {% if role == 'admin' %}
     <div style="display:flex; gap:.75rem; align-items:center; flex-wrap:wrap;">
       <button class="btn btn-primary" onclick="triggerSync()" id="sync-btn">↻ &nbsp;Run full sync now</button>
       <span id="sync-status" style="font-size:.85rem; color:var(--muted);"></span>
     </div>
+    {% endif %}
     <p style="margin-top:.75rem; font-size:.8rem; color:var(--muted);">
       Incremental sync runs automatically every {{ config.SYNC_INTERVAL_SECONDS // 60 }} minutes.
+      {% if role != 'admin' %}Only admins can trigger a manual sync.{% endif %}
     </p>
   </div>
 </div>
@@ -121,21 +124,25 @@
           <td style="font-size:.8rem; color:var(--muted);">{{ u.created_at[:10] if u.created_at else '—' }}</td>
           <td style="font-size:.8rem; color:var(--muted);">{{ u.last_login[:16].replace('T',' ') if u.last_login else '—' }}</td>
           <td>
-            {% if u.username != username %}
-            <form method="POST" action="{{ url_for('change_user_role', uid=u.id) }}" style="display:flex; gap:.4rem;">
-              <select name="role" style="font-size:.8rem; padding:.25rem .5rem;">
-                {% for r in ['readonly','viewedit','editor','admin'] %}
-                <option value="{{ r }}" {% if r == u.role %}selected{% endif %}>{{ r }}</option>
-                {% endfor %}
-              </select>
-              <button type="submit" class="btn btn-secondary btn-sm">Save</button>
-            </form>
+            {% if role == 'admin' %}
+              {% if u.username != username %}
+              <form method="POST" action="{{ url_for('change_user_role', uid=u.id) }}" style="display:flex; gap:.4rem;">
+                <select name="role" style="font-size:.8rem; padding:.25rem .5rem;">
+                  {% for r in ['readonly','viewedit','admin'] %}
+                  <option value="{{ r }}" {% if r == u.role %}selected{% endif %}>{{ r }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-secondary btn-sm">Save</button>
+              </form>
+              {% else %}
+              <span style="font-size:.8rem; color:var(--muted);">Cannot change own role</span>
+              {% endif %}
             {% else %}
-            <span style="font-size:.8rem; color:var(--muted);">Cannot change own role</span>
+            <span style="font-size:.8rem; color:var(--muted);">—</span>
             {% endif %}
           </td>
           <td>
-            {% if u.username != username %}
+            {% if role == 'admin' and u.username != username %}
             <form method="POST" action="{{ url_for('delete_user', uid=u.id) }}"
                   onsubmit="return confirm('Remove {{ u.username }} from the user list? They can sign in again.')">
               <button type="submit" class="btn btn-danger btn-sm">Remove</button>
@@ -315,7 +322,11 @@
             {% if c.app_html %}{{ c.app_html | safe }}{% else %}<em style="color:var(--muted);">No notes</em>{% endif %}
           </div>
           <div style="margin-top:1rem;">
+            {% if role == 'admin' %}
             <button class="btn btn-primary btn-sm" onclick="resolveConflict({{ c.id }}, 'app', this)">✓ Use app version</button>
+            {% else %}
+            <span style="font-size:.78rem; color:var(--muted);">Only admins can resolve conflicts.</span>
+            {% endif %}
           </div>
         </div>
         <div style="padding:1.25rem;">
@@ -327,7 +338,9 @@
             {% if c.outlook_html %}{{ c.outlook_html | safe }}{% else %}<em style="color:var(--muted);">No notes</em>{% endif %}
           </div>
           <div style="margin-top:1rem;">
+            {% if role == 'admin' %}
             <button class="btn btn-secondary btn-sm" onclick="resolveConflict({{ c.id }}, 'outlook', this)">✓ Use Outlook version</button>
+            {% endif %}
           </div>
         </div>
       </div>

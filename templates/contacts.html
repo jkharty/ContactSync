@@ -85,13 +85,6 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-header" style="margin-bottom:.25rem; min-height:0; padding-top:.25rem;">
-  <div></div>
-  {% if role in ('editor','admin') %}
-  <button id="select-mode-btn" class="btn btn-secondary btn-sm" onclick="toggleSelectMode()">Select</button>
-  {% endif %}
-</div>
-
 <!-- Search + category filter -->
 <div class="card" style="padding:1rem 1.25rem; margin-bottom:.5rem;">
   <div style="display:flex; gap:.75rem; align-items:center; flex-wrap:wrap;">
@@ -119,11 +112,26 @@
   </div>
 </div>
 
-<p id="contacts-count" style="font-size:.82rem; color:var(--muted); padding:.25rem .25rem .5rem;">
-  {{ total }} contact{{ 's' if total != 1 else '' }}
-  {%- if query %} matching "{{ query }}"{% endif %}
-  {%- if category %} in "{{ category }}"{% endif %}
-</p>
+<div style="display:flex; align-items:center; gap:.75rem; padding:.25rem .25rem .5rem;">
+  {% if role in ('viewedit','admin') %}
+  <button id="select-mode-btn" class="btn btn-secondary btn-sm" onclick="toggleSelectMode()">Select</button>
+  <a href="{{ url_for('new_contact') }}" class="btn btn-primary btn-sm">+ New Contact</a>
+  {% endif %}
+  <p id="contacts-count" style="font-size:.82rem; color:var(--muted); margin:0;">
+    {{ total }} contact{{ 's' if total != 1 else '' }}
+    {%- if query %} matching "{{ query }}"{% endif %}
+    {%- if category %} in "{{ category }}"{% endif %}
+  </p>
+</div>
+
+{% if role in ('viewedit','admin') %}
+<div id="select-all-card" class="card" style="display:none; padding:.6rem 1.25rem; margin-bottom:.5rem;">
+  <label style="display:flex; align-items:center; gap:.6rem; cursor:pointer; margin:0;">
+    <input type="checkbox" id="select-all-cb" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+    <span style="font-size:.875rem; font-weight:500;">Select all</span>
+  </label>
+</div>
+{% endif %}
 
 <!-- Results list -->
 <div class="card" style="overflow:hidden;">
@@ -134,7 +142,7 @@
     {% set addr_state  = c.home_state  or c.address_state  or c.other_state  or '' %}
     {% set primary_phone = c.phone_mobile or c.phone_business or c.phone_home or '' %}
     <div class="contact-card" onclick="location.href='{{ url_for('contact_detail', cid=c.id) }}'">
-      {% if role in ('editor','admin') %}
+      {% if role in ('viewedit','admin') %}
       <div class="contact-card-cb" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-cb contact-cb" data-id="{{ c.id }}" title="Select">
       </div>
@@ -196,7 +204,7 @@
 </div>
 
 <!-- Bulk action bar -->
-{% if role in ('editor','admin') %}
+{% if role in ('viewedit','admin') %}
 <div id="bulk-bar">
   <span class="bulk-count"><span id="bulk-count-num">0</span> selected</span>
   <button class="bulk-assign-btn" onclick="openCatModal()">Assign category…</button>
@@ -238,7 +246,7 @@
 {% block extra_js %}
 <script>
 (function() {
-  const HAS_CB     = {{ 'true' if role in ('editor','admin') else 'false' }};
+  const HAS_CB     = {{ 'true' if role in ('viewedit','admin') else 'false' }};
   const searchInput = document.getElementById('search-input');
   const catSelect   = document.getElementById('cat-select');
   const clearWrap   = document.getElementById('clear-btn-wrap');
@@ -404,6 +412,13 @@
     if (!bar) return;
     if (checked.length > 0) { bar.classList.add('visible'); num.textContent = checked.length; }
     else { bar.classList.remove('visible'); }
+    // Sync select-all checkbox state
+    const selectAllCb = document.getElementById('select-all-cb');
+    if (selectAllCb) {
+      const all = document.querySelectorAll('.contact-cb');
+      selectAllCb.indeterminate = checked.length > 0 && checked.length < all.length;
+      selectAllCb.checked       = all.length > 0 && checked.length === all.length;
+    }
   }
 
   bindCheckboxes();
@@ -413,6 +428,16 @@
     const bar = document.getElementById('bulk-bar');
     if (bar) bar.classList.remove('visible');
   };
+
+  // Select All checkbox
+  const selectAllCard = document.getElementById('select-all-card');
+  const selectAllCb   = document.getElementById('select-all-cb');
+  if (selectAllCb) {
+    selectAllCb.addEventListener('change', function() {
+      document.querySelectorAll('.contact-cb').forEach(cb => { cb.checked = selectAllCb.checked; });
+      updateBulkBar();
+    });
+  }
 
   let selectModeActive = false;
   window.toggleSelectMode = function() {
@@ -424,11 +449,14 @@
       btn.textContent = 'Cancel';
       btn.classList.add('btn-primary');
       btn.classList.remove('btn-secondary');
+      if (selectAllCard) selectAllCard.style.display = '';
     } else {
       list.classList.remove('select-mode');
       btn.textContent = 'Select';
       btn.classList.remove('btn-primary');
       btn.classList.add('btn-secondary');
+      if (selectAllCard) selectAllCard.style.display = 'none';
+      if (selectAllCb)   { selectAllCb.checked = false; selectAllCb.indeterminate = false; }
       clearSelection();
     }
   };

@@ -766,12 +766,61 @@ def _process_pending_writes(db, account):
             log.info(f"Skipping write-back — conflict pending for {row['exchange_id'][:30]}")
             continue
         try:
+            field_type = row["field_type"] if row["field_type"] else "notes"
+
+            if field_type == "create":
+                import json as _json
+                from exchangelib import Contact as _Contact, EmailAddress, PhoneNumber, PhysicalAddress, HTMLBody as _HTMLBody
+                data = _json.loads(row["field_data"])
+                target  = account.root / 'Top of Information Store' / 'Contacts'
+                new_c   = _Contact(folder=target)
+                new_c.given_name    = data.get("first_name") or None
+                new_c.surname       = data.get("last_name") or None
+                new_c.company_name  = data.get("company") or None
+                new_c.job_title     = data.get("job_title") or None
+                emails = []
+                for lbl, key in [("EmailAddress1","email1"),("EmailAddress2","email2"),("EmailAddress3","email3")]:
+                    if data.get(key):
+                        emails.append(EmailAddress(email=data[key], label=lbl))
+                if emails: new_c.email_addresses = emails
+                phones = []
+                for lbl, key in [("BusinessPhone","phone_business"),("MobilePhone","phone_mobile"),("HomePhone","phone_home")]:
+                    if data.get(key):
+                        phones.append(PhoneNumber(phone_number=data[key], label=lbl))
+                if phones: new_c.phone_numbers = phones
+                addrs = []
+                for lbl, pfx in [("Business","address"),("Home","home"),("Other","other")]:
+                    if data.get(f"{pfx}_street"):
+                        addrs.append(PhysicalAddress(
+                            street=data[f"{pfx}_street"],
+                            city=data.get(f"{pfx}_city") or None,
+                            state=data.get(f"{pfx}_state") or None,
+                            zipcode=data.get(f"{pfx}_zip") or None,
+                            country=data.get(f"{pfx}_country") or None,
+                            label=lbl,
+                        ))
+                if addrs: new_c.physical_addresses = addrs
+                cats = data.get("categories", [])
+                if cats: new_c.categories = cats
+                notes_html = data.get("notes_html", "")
+                if notes_html:
+                    new_c.body = _HTMLBody(f"<html><body>{notes_html}</body></html>")
+                new_c.save()
+                real_id    = new_c.id
+                change_key = new_c.changekey
+                local_id   = row["exchange_id"]
+                db.execute("UPDATE contacts SET exchange_id=?, change_key=? WHERE exchange_id=?",
+                           (real_id, change_key, local_id))
+                db.execute("UPDATE pending_writes SET status='done', exchange_id=? WHERE id=?",
+                           (real_id, row["id"]))
+                log.info(f"Created in Exchange: {data.get('first_name','')} {data.get('last_name','')}")
+                db.commit()
+                continue
+
             items = list(account.fetch(ids=[ItemId(row["exchange_id"])]))
             if not items:
                 raise ValueError("Contact not found in Exchange")
             c = items[0]
-
-            field_type = row["field_type"] if row["field_type"] else "notes"
 
             if field_type == "fields":
                 _write_fields_to_exchange(c, row["field_data"])

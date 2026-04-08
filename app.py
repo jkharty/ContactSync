@@ -307,7 +307,7 @@ def contact_detail(cid):
 
 @app.route("/contacts/<int:cid>/edit", methods=["GET", "POST"])
 @login_required
-@role_required("editor", "viewedit", "admin")
+@role_required("viewedit", "admin")
 def edit_contact(cid):
     db  = get_request_db()
     row = db.execute("SELECT * FROM contacts WHERE id=?", (cid,)).fetchone()
@@ -339,7 +339,7 @@ def edit_contact(cid):
 # ── Edit contact fields (identity / contact info / address / categories / notes)
 @app.route("/contacts/<int:cid>/edit-fields", methods=["GET", "POST"])
 @login_required
-@role_required("editor", "viewedit", "admin")
+@role_required("viewedit", "admin")
 def edit_fields(cid):
     import json
     db  = get_request_db()
@@ -474,6 +474,104 @@ def edit_fields(cid):
         role=session["role"], username=session["username"],
         all_categories=all_categories)
 
+# ── Create new contact ───────────────────────────────────────────────────────
+@app.route("/contacts/new", methods=["GET", "POST"])
+@login_required
+@role_required("viewedit", "admin")
+def new_contact():
+    import uuid, json as _json
+    db = get_request_db()
+
+    if request.method == "POST":
+        f    = request.form
+        cats = [v.strip() for v in f.getlist("category") if v.strip()]
+        cat_str  = "|".join(cats)
+        first    = f.get("first_name", "").strip()
+        last     = f.get("last_name", "").strip()
+        company  = f.get("company", "").strip()
+        display_name = f"{first} {last}".strip() if (first or last) else (company or "New Contact")
+        now      = datetime.datetime.utcnow().isoformat()
+        local_id = f"LOCAL-{uuid.uuid4()}"
+
+        field_data = {
+            "first_name": first, "last_name": last, "company": company,
+            "job_title":       f.get("job_title", "").strip(),
+            "email1":          f.get("email1", "").strip(),
+            "email2":          f.get("email2", "").strip(),
+            "email3":          f.get("email3", "").strip(),
+            "phone_business":  f.get("phone_business", "").strip(),
+            "phone_mobile":    f.get("phone_mobile", "").strip(),
+            "phone_home":      f.get("phone_home", "").strip(),
+            "address_street":  f.get("address_street", "").strip(),
+            "address_city":    f.get("address_city", "").strip(),
+            "address_state":   f.get("address_state", "").strip(),
+            "address_zip":     f.get("address_zip", "").strip(),
+            "address_country": f.get("address_country", "").strip(),
+            "home_street":     f.get("home_street", "").strip(),
+            "home_city":       f.get("home_city", "").strip(),
+            "home_state":      f.get("home_state", "").strip(),
+            "home_zip":        f.get("home_zip", "").strip(),
+            "home_country":    f.get("home_country", "").strip(),
+            "other_street":    f.get("other_street", "").strip(),
+            "other_city":      f.get("other_city", "").strip(),
+            "other_state":     f.get("other_state", "").strip(),
+            "other_zip":       f.get("other_zip", "").strip(),
+            "other_country":   f.get("other_country", "").strip(),
+            "categories":      cats,
+            "notes_html":      f.get("notes_html", ""),
+        }
+
+        db.execute("""
+            INSERT INTO contacts (
+                exchange_id, first_name, last_name, display_name, company, job_title,
+                email1, email2, email3, phone_business, phone_mobile, phone_home,
+                address_street, address_city, address_state, address_zip, address_country,
+                home_street, home_city, home_state, home_zip, home_country,
+                other_street, other_city, other_state, other_zip, other_country,
+                categories, notes_html, synced_at
+            ) VALUES (
+                :exchange_id, :first_name, :last_name, :display_name, :company, :job_title,
+                :email1, :email2, :email3, :phone_business, :phone_mobile, :phone_home,
+                :address_street, :address_city, :address_state, :address_zip, :address_country,
+                :home_street, :home_city, :home_state, :home_zip, :home_country,
+                :other_street, :other_city, :other_state, :other_zip, :other_country,
+                :categories, :notes_html, :synced_at
+            )
+        """, {**field_data, "exchange_id": local_id, "display_name": display_name,
+              "categories": cat_str, "synced_at": now})
+
+        new_id = db.execute("SELECT last_insert_rowid()").fetchone()[0]
+        db.execute("""
+            INSERT INTO pending_writes
+              (exchange_id, field_type, field_data, requested_by, requested_at, status)
+            VALUES (?, 'create', ?, ?, ?, 'pending')
+        """, (local_id, _json.dumps(field_data), session["username"], now))
+        _audit(db, new_id, local_id, display_name,
+               session["username"], "create", None, None, display_name)
+        db.commit()
+        return redirect(url_for("contact_detail", cid=new_id))
+
+    # GET — empty form
+    cat_rows = db.execute(
+        "SELECT categories FROM contacts WHERE categories IS NOT NULL AND categories != ''"
+    ).fetchall()
+    cat_set = set()
+    for r in cat_rows:
+        for cat in r["categories"].split("|"):
+            if cat.strip():
+                cat_set.add(cat.strip())
+    empty = {k: "" for k in [
+        "id", "display_name", "first_name", "last_name", "company", "job_title",
+        "email1", "email2", "email3", "phone_business", "phone_mobile", "phone_home",
+        "address_street", "address_city", "address_state", "address_zip", "address_country",
+        "home_street", "home_city", "home_state", "home_zip", "home_country",
+        "other_street", "other_city", "other_state", "other_zip", "other_country",
+        "categories", "notes_html",
+    ]}
+    return render_template("edit_fields.html", c=empty, section="identity",
+        role=session["role"], username=session["username"],
+        all_categories=sorted(cat_set), new_contact=True)
+
 # ── Delete contact ────────────────────────────────────────────────────────────
 @app.route("/contacts/<int:cid>/delete", methods=["POST"])
 @login_required
@@ -538,7 +636,7 @@ def api_sync_status():
 # ── Admin routes ──────────────────────────────────────────────────────────────
 @app.route("/admin")
 @login_required
-@role_required("admin")
+@role_required("admin", "viewedit")
 def admin():
     db      = get_request_db()
     tab     = request.args.get("tab", "overview")
@@ -546,9 +644,18 @@ def admin():
     total   = db.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
     pending = db.execute("SELECT COUNT(*) FROM pending_writes WHERE status='pending'").fetchone()[0]
     users   = db.execute("SELECT * FROM users ORDER BY username COLLATE NOCASE").fetchall()
-    history = db.execute("""
-        SELECT * FROM audit_log ORDER BY changed_at DESC LIMIT 200
-    """).fetchall()
+    if session["role"] == "viewedit":
+        # viewedit cannot see audit entries for contacts categorised as personal
+        history = db.execute("""
+            SELECT al.* FROM audit_log al
+            LEFT JOIN contacts c ON al.contact_id = c.id
+            WHERE c.categories IS NULL OR c.categories NOT LIKE '%personal%'
+            ORDER BY al.changed_at DESC LIMIT 200
+        """).fetchall()
+    else:
+        history = db.execute("""
+            SELECT * FROM audit_log ORDER BY changed_at DESC LIMIT 200
+        """).fetchall()
     errors  = db.execute(
         "SELECT * FROM sync_errors WHERE resolved=0 ORDER BY last_seen DESC"
     ).fetchall()
@@ -576,7 +683,7 @@ def trigger_sync():
 @role_required("admin")
 def change_user_role(uid):
     new_role = request.form.get("role", "").strip()
-    if new_role not in ("readonly", "editor", "viewedit", "admin"):
+    if new_role not in ("readonly", "viewedit", "admin"):
         return redirect(url_for("admin", tab="users"))
     db  = get_request_db()
     now = datetime.datetime.utcnow().isoformat()
@@ -684,7 +791,7 @@ def api_contacts():
 # ── Bulk category assign ──────────────────────────────────────────────────────
 @app.route("/api/contacts/bulk-assign", methods=["POST"])
 @login_required
-@role_required("editor", "viewedit", "admin")
+@role_required("viewedit", "admin")
 def bulk_assign():
     data       = request.get_json(force=True)
     ids        = [int(i) for i in data.get("ids", [])]
