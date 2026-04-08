@@ -81,6 +81,45 @@
   .cca-btn:hover { background: var(--accent-light); border-color: #c8d6fa; }
   .cca-btn-call  { background: #edfaf3; border-color: #a8e6c3; }
   .cca-btn-text  { background: var(--accent-light); border-color: #c8d6fa; }
+
+  /* ── Category bubbles ── */
+  .contact-card-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-width: 0;
+  }
+  .contact-card-name-bubbles {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .category-bubble {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 600;
+    padding: 0.2rem 0.45rem;
+    border-radius: 10px;
+    line-height: 1;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  /* Category color variants */
+  .category-bubble.arc { background: #e3f2fd; color: #1565c0; }
+  .category-bubble.bld { background: #fce4ec; color: #c2185b; }
+  .category-bubble.cc { background: #f3e5f5; color: #6a1b9a; }
+  .category-bubble.elc { background: #fff3e0; color: #e65100; }
+  .category-bubble.gen { background: #e8f5e9; color: #2e7d32; }
+  .category-bubble.ind { background: #fce4ec; color: #ad1457; }
+  .category-bubble.mfg { background: #e0f2f1; color: #00695c; }
+  .category-bubble.pc { background: #f1f8e9; color: #558b2f; }
+  .category-bubble.prs { background: #ede7f6; color: #512da8; }
+  .category-bubble.pmg { background: #fff8e1; color: #f57f17; }
+  .category-bubble.rea { background: #e8eaf6; color: #3949ab; }
+  .category-bubble.sub { background: #f8bbd0; color: #880e4f; }
 </style>
 {% endblock %}
 
@@ -148,7 +187,18 @@
       </div>
       {% endif %}
       <div class="contact-card-info">
-        <div class="contact-card-name">{{ c.display_name or '(no name)' }}</div>
+        <div class="contact-card-name-row">
+          <div class="contact-card-name">{{ c.display_name or '(no name)' }}</div>
+          {% if c.categories %}
+          <div class="contact-card-name-bubbles">
+            {% set cat_map = {'Architects':'ARC','Builder':'BLD','Current Customer':'CC','Electricians':'ELC','General':'GEN','Interior Designer':'IND','Mfg Reps and Distributors':'MFG','Past Customer':'PC','Personal':'PRS','Property Manager':'PMG','Real Estate Agent':'REA','Sub Contractor':'SUB'} %}
+            {% for cat in c.categories.split('|') %}
+            {% set abbrev = cat_map.get(cat, cat[:3].upper()) %}
+            <span class="category-bubble {{ abbrev.lower() }}">{{ abbrev }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
         {% if c.company %}
         <div class="contact-card-company">{{ c.company }}</div>
         {% endif %}
@@ -293,6 +343,25 @@
         ).join('');
     }
 
+    // Category abbreviation mapping
+    const catMap = {
+      'Architects':'ARC','Builder':'BLD','Current Customer':'CC','Electricians':'ELC',
+      'General':'GEN','Interior Designer':'IND','Mfg Reps and Distributors':'MFG',
+      'Past Customer':'PC','Personal':'PRS','Property Manager':'PMG','Real Estate Agent':'REA','Sub Contractor':'SUB'
+    };
+
+    function renderCategoryBubbles(categories) {
+      if (!categories) return '';
+      const cats = categories.split('|').map(c => c.trim()).filter(c => c);
+      if (cats.length === 0) return '';
+      return `<div class="contact-card-name-bubbles">
+        ${cats.map(c => {
+          const abbrev = catMap[c] || c.substring(0,3).toUpperCase();
+          return `<span class="category-bubble ${abbrev.toLowerCase()}">${abbrev}</span>`;
+        }).join('')}
+      </div>`;
+    }
+
     if (data.contacts.length === 0) {
       tbody.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--muted);">
         No contacts found.${(q || cat) ? ' Try a different search or category.' : ''}
@@ -311,11 +380,15 @@
           ? `<a class="cca-btn cca-btn-text" href="sms:${c.phone_mobile}" onclick="event.stopPropagation()" title="Text">💬</a>` : '';
         const emailBtn = c.email1
           ? `<a class="cca-btn" href="mailto:${c.email1}" onclick="event.stopPropagation()" title="Email">✉</a>` : '';
+        const categoryBubbles = renderCategoryBubbles(c.categories);
         return `
         <div class="contact-card" onclick="location.href='/contacts/${c.id}'">
           ${cb}
           <div class="contact-card-info">
-            <div class="contact-card-name">${c.display_name || '(no name)'}</div>
+            <div class="contact-card-name-row">
+              <div class="contact-card-name">${c.display_name || '(no name)'}</div>
+              ${categoryBubbles}
+            </div>
             ${c.company ? `<div class="contact-card-company">${c.company}</div>` : ''}
             ${addr ? `<div class="contact-card-address">${addr}</div>` : ''}
           </div>
