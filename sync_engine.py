@@ -689,7 +689,10 @@ def incremental_sync():
 def _write_fields_to_exchange(c, field_data):
     """Apply a field_data dict (from pending_writes) to an exchangelib Contact object."""
     import json
-    from exchangelib import EmailAddress, PhoneNumber, PhysicalAddress
+    try:
+        from exchangelib.properties import EmailAddress, PhoneNumber, PhysicalAddress
+    except ImportError:
+        from exchangelib import EmailAddress, PhoneNumber, PhysicalAddress
     data = json.loads(field_data)
 
     update_fields = []
@@ -770,7 +773,11 @@ def _process_pending_writes(db, account):
 
             if field_type == "create":
                 import json as _json
-                from exchangelib import Contact as _Contact, EmailAddress, PhoneNumber, PhysicalAddress, HTMLBody as _HTMLBody
+                from exchangelib import Contact as _Contact, HTMLBody as _HTMLBody
+                try:
+                    from exchangelib.properties import EmailAddress, PhoneNumber, PhysicalAddress
+                except ImportError:
+                    from exchangelib import EmailAddress, PhoneNumber, PhysicalAddress
                 data = _json.loads(row["field_data"])
                 target  = account.root / 'Top of Information Store' / 'Contacts'
                 new_c   = _Contact(folder=target)
