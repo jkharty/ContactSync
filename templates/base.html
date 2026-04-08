@@ -363,7 +363,7 @@
   <div class="nav-links">
     <a class="nav-link {% if request.endpoint=='contacts' %}active{% endif %}"
        href="{{ url_for('contacts') }}">Contacts</a>
-    {% if role == 'admin' %}
+    {% if role in ('admin', 'viewedit') %}
     {% set conflict_count = get_pending_conflicts() %}
     <a class="nav-link {% if request.endpoint=='admin' %}active{% endif %}"
        href="{{ url_for('admin') }}">Admin{% if conflict_count > 0 %} <span style="color:var(--warning);">⚠</span>{% endif %}</a>
