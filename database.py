@@ -182,6 +182,8 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL,
             role TEXT NOT NULL DEFAULT 'readonly', created_at TEXT, updated_at TEXT)""",
         "ALTER TABLE sync_log ADD COLUMN sync_type TEXT",
+        "ALTER TABLE users ADD COLUMN email TEXT",
+        "ALTER TABLE users ADD COLUMN last_login TEXT",
     ]
     for sql in migrations:
         try:

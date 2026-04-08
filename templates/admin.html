@@ -75,7 +75,7 @@
       </div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Active users</div>
+      <div class="stat-label">Registered users</div>
       <div class="stat-value">{{ users|length }}</div>
     </div>
   </div>
@@ -102,8 +102,10 @@
       <thead>
         <tr>
           <th>Username</th>
+          <th>Email</th>
           <th>Current role</th>
           <th>First seen</th>
+          <th>Last login</th>
           <th>Change role</th>
           <th></th>
         </tr>
@@ -114,8 +116,10 @@
           <td><strong>{{ u.username }}</strong>
             {% if u.username == username %}<span class="chip" style="margin-left:.4rem;">you</span>{% endif %}
           </td>
+          <td style="font-size:.8rem; color:var(--muted);">{{ u.email or '—' }}</td>
           <td><span class="badge badge-{{ u.role }}">{{ u.role }}</span></td>
           <td style="font-size:.8rem; color:var(--muted);">{{ u.created_at[:10] if u.created_at else '—' }}</td>
+          <td style="font-size:.8rem; color:var(--muted);">{{ u.last_login[:16].replace('T',' ') if u.last_login else '—' }}</td>
           <td>
             {% if u.username != username %}
             <form method="POST" action="{{ url_for('change_user_role', uid=u.id) }}" style="display:flex; gap:.4rem;">

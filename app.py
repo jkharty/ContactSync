@@ -16,46 +16,62 @@ app.secret_key = config.SECRET_KEY
 _DOMAIN      = "invisionvail.com"
 _ADMIN_EMAIL = "johnh@invisionvail.com"
 
-# Comma-separated list of @invisionvail.com emails that get the viewedit role.
-# Set via App Setting: VIEWEDIT_EMAILS=alice@invisionvail.com,bob@invisionvail.com
-_VIEWEDIT_EMAILS = set(
-    e.strip().lower()
-    for e in os.environ.get("VIEWEDIT_EMAILS", "").split(",")
-    if e.strip()
-)
-
 @app.before_request
 def load_azure_user():
     """
     When Azure Easy Auth is active, every request arrives with the header
     X-MS-CLIENT-PRINCIPAL-NAME set to the signed-in user's email address.
-    Map that email to a session role and populate session['username'].
+
+    On each request:
+      - Domain-check the email (deny non-invisionvail.com addresses).
+      - First login: insert user into the users table with role 'readonly'
+        (or 'admin' for the designated admin email).
+      - Subsequent requests: read role from the users table so that admin
+        role changes take effect on the user's very next request.
 
     When running locally (no Easy Auth), the header is absent and this
     function is a no-op — the normal /login route handles authentication.
     """
-    # Let Easy Auth's own /.auth/* endpoints through without a session.
     if request.path.startswith("/.auth"):
         return
 
     email = request.headers.get("X-MS-CLIENT-PRINCIPAL-NAME", "")
     if not email:
-        # No Easy Auth header — local dev, fall through to normal login.
         return
 
-    # Assign role based on email address.
-    if email.lower() == _ADMIN_EMAIL.lower():
-        role = "admin"
-    elif email.lower() in _VIEWEDIT_EMAILS:
-        role = "viewedit"
-    elif email.lower().endswith("@" + _DOMAIN):
-        role = "readonly"
-    else:
-        # Not an invisionvail.com address — deny access.
+    email_lower = email.lower()
+
+    # Domain gate — deny anyone outside invisionvail.com.
+    if email_lower != _ADMIN_EMAIL.lower() and not email_lower.endswith("@" + _DOMAIN):
         return "Access denied: your Microsoft account is not authorised for this application.", 403
 
-    # Populate the session so login_required and role_required work normally.
-    session["username"] = email.split("@")[0]
+    username  = email.split("@")[0]
+    now       = datetime.datetime.utcnow().isoformat()
+    default_role = "admin" if email_lower == _ADMIN_EMAIL.lower() else "readonly"
+
+    # Look up user in DB; create on first login.
+    db = get_db()
+    try:
+        row = db.execute("SELECT role FROM users WHERE username=?", (username,)).fetchone()
+        if row:
+            # Use whatever role the admin has set in the DB.
+            role = row["role"]
+            db.execute(
+                "UPDATE users SET last_login=?, email=? WHERE username=?",
+                (now, email, username)
+            )
+        else:
+            role = default_role
+            db.execute(
+                "INSERT INTO users (username, email, role, created_at, last_login) "
+                "VALUES (?,?,?,?,?)",
+                (username, email, role, now, now)
+            )
+        db.commit()
+    finally:
+        db.close()
+
+    session["username"] = username
     session["email"]    = email
     session["role"]     = role
 
