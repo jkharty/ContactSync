@@ -306,8 +306,8 @@
   const pagination  = document.getElementById('pagination-wrap');
   let debounceTimer = null;
   let currentSort   = { key: '{{ sort_key }}', dir: '{{ sort_dir }}' };
-  // Store the full list of all categories (not filtered by search results)
-  let allCategories = Array.from(catSelect.options).map(o => o.value).filter(v => v);
+  // Store the full list of all categories (hardcoded to ensure complete list)
+  let allCategories = ['Architects','Builder','Current Customer','Electricians','General','Interior Designer','Mfg Reps and Distributors','Past Customer','Personal','Property Manager','Real Estate Agent','Sub Contractor'];
 
   function addrLine(c) {
     const street = c.home_street || c.address_street || c.other_street || '';
@@ -336,11 +336,6 @@
       data.available_categories.map(c =>
         `<option value="${c}"${c === cat ? ' selected' : ''}>${c}</option>`
       ).join('');
-
-    // Update allCategories if we got new ones from the API (on first load)
-    if (data.available_categories.length > allCategories.length) {
-      allCategories = data.available_categories;
-    }
 
     // Category abbreviation mapping
     const catMap = {
