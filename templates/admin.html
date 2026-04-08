@@ -44,7 +44,7 @@
 <!-- Tab bar -->
 <div class="admin-tab-bar">
   <button class="admin-tab-btn" data-panel="overview">Overview</button>
-  <button class="admin-tab-btn" data-panel="users">Users</button>
+  {% if role == 'admin' %}<button class="admin-tab-btn" data-panel="users">Users</button>{% endif %}
   <button class="admin-tab-btn" data-panel="history">Change history</button>
   <button class="admin-tab-btn" data-panel="synclog">Sync log</button>
   <button class="admin-tab-btn" data-panel="errors">
