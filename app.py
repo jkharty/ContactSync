@@ -3,6 +3,7 @@ app.py — Flask web application.
 Serves the contact browser/editor to users on the local network.
 """
 import os, datetime, threading, functools, json as _json
+from zoneinfo import ZoneInfo
 from flask import (Flask, render_template, request, redirect,
                    url_for, session, jsonify, g)
 import config
@@ -11,6 +12,20 @@ from sync_engine import full_sync, run_scheduler, html_to_rtf
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
+
+_MOUNTAIN = ZoneInfo("America/Denver")
+
+@app.template_filter("mtn")
+def to_mountain(utc_str):
+    """Convert a UTC ISO string to Mountain Time (handles MST/MDT automatically)."""
+    if not utc_str:
+        return "—"
+    try:
+        s = str(utc_str)[:19].replace(" ", "T")
+        dt = datetime.datetime.fromisoformat(s).replace(tzinfo=datetime.timezone.utc)
+        return dt.astimezone(_MOUNTAIN).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return str(utc_str)[:19].replace("T", " ")
 
 # ── Easy Auth / Microsoft 365 login ───────────────────────────────────────────
 _DOMAIN      = "invisionvail.com"

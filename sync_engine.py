@@ -13,6 +13,21 @@ from exchangelib import (
 )
 from exchangelib.credentials import OAuth2AuthorizationCodeCredentials
 
+# Discover contact sub-types directly from the Contact class so this works
+# regardless of which exchangelib version rearranges its package structure.
+def _discover_contact_subtypes():
+    EmailAddress = PhoneNumber = PhysicalAddress = None
+    for field in Contact.FIELDS:
+        if field.name == 'email_addresses' and hasattr(field, 'value_cls'):
+            EmailAddress = field.value_cls
+        elif field.name == 'phone_numbers' and hasattr(field, 'value_cls'):
+            PhoneNumber = field.value_cls
+        elif field.name == 'physical_addresses' and hasattr(field, 'value_cls'):
+            PhysicalAddress = field.value_cls
+    return EmailAddress, PhoneNumber, PhysicalAddress
+
+_EmailAddress, _PhoneNumber, _PhysicalAddress = _discover_contact_subtypes()
+
 logging.basicConfig(level=logging.INFO,
     format="%(asctime)s [SYNC] %(levelname)s %(message)s")
 log = logging.getLogger("sync")
@@ -689,10 +704,7 @@ def incremental_sync():
 def _write_fields_to_exchange(c, field_data):
     """Apply a field_data dict (from pending_writes) to an exchangelib Contact object."""
     import json
-    try:
-        from exchangelib.properties import EmailAddress, PhoneNumber, PhysicalAddress
-    except ImportError:
-        from exchangelib import EmailAddress, PhoneNumber, PhysicalAddress
+    EmailAddress, PhoneNumber, PhysicalAddress = _EmailAddress, _PhoneNumber, _PhysicalAddress
     data = json.loads(field_data)
 
     update_fields = []
@@ -773,11 +785,8 @@ def _process_pending_writes(db, account):
 
             if field_type == "create":
                 import json as _json
-                from exchangelib import Contact as _Contact, HTMLBody as _HTMLBody
-                try:
-                    from exchangelib.properties import EmailAddress, PhoneNumber, PhysicalAddress
-                except ImportError:
-                    from exchangelib import EmailAddress, PhoneNumber, PhysicalAddress
+                from exchangelib import HTMLBody as _HTMLBody
+                EmailAddress, PhoneNumber, PhysicalAddress = _EmailAddress, _PhoneNumber, _PhysicalAddress
                 data = _json.loads(row["field_data"])
                 target  = account.root / 'Top of Information Store' / 'Contacts'
                 new_c   = _Contact(folder=target)
