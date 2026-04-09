@@ -199,11 +199,10 @@ def _contact_where(query, category, is_admin):
         parts.append("(categories IS NULL OR categories NOT LIKE '%PERSONAL%')")
 
     if query:
-        # Split query into words for word-prefix matching
+        # Split query into tokens — each token must match somewhere across any field,
+        # matched at word boundaries (start of field or after a space).
         query_words = query.split()
-
         if query_words:
-            # Build word-prefix patterns for searchable fields
             fields = [
                 "display_name", "company", "email1", "email2", "email3",
                 "phone_business", "phone_mobile", "phone_home", "notes_plain",
@@ -211,26 +210,18 @@ def _contact_where(query, category, is_admin):
                 "home_street", "home_city", "home_state",
                 "other_street", "other_city", "other_state"
             ]
-
             field_conditions = []
             for field in fields:
                 field_patterns = []
                 field_params = []
                 for word in query_words:
-                    # Each word must match at start of field or after whitespace
                     field_patterns.append(f"({field} LIKE ? OR {field} LIKE ?)")
                     field_params.extend([f"{word}%", f"% {word}%"])
-
-                # All words must match in this field
                 if field_patterns:
-                    field_condition = " AND ".join(field_patterns)
-                    field_conditions.append(f"({field_condition})")
+                    field_conditions.append("(" + " AND ".join(field_patterns) + ")")
                     params.extend(field_params)
-
-            # Any of the fields can match
             if field_conditions:
                 parts.append("(" + " OR ".join(field_conditions) + ")")
-
     if category:
         parts.append("categories LIKE ?")
         params.append(f"%{category}%")
@@ -774,18 +765,27 @@ def retry_failed_writes():
 @login_required
 def api_search():
     q        = request.args.get("q", "").strip()
-    like     = f"%{q}%"
     db       = get_request_db()
     is_admin = session["role"] == "admin"
     personal = "" if is_admin else "AND (categories IS NULL OR categories NOT LIKE '%PERSONAL%')"
+    tokens   = q.split() if q else []
+    if not tokens:
+        return jsonify([])
+    token_clauses = " AND ".join(
+        "(display_name LIKE ? OR company LIKE ? OR email1 LIKE ? OR email2 LIKE ? OR phone_business LIKE ? OR phone_mobile LIKE ?)"
+        for _ in tokens
+    )
+    token_params = []
+    for token in tokens:
+        like = f"%{token}%"
+        token_params.extend([like] * 6)
     rows = db.execute(f"""
         SELECT id, display_name, company, email1
         FROM contacts
-        WHERE (display_name LIKE ? OR company LIKE ? OR email1 LIKE ?
-               OR email2 LIKE ? OR phone_business LIKE ? OR phone_mobile LIKE ?)
+        WHERE {token_clauses}
         {personal}
         ORDER BY display_name COLLATE NOCASE LIMIT 10
-    """, (like, like, like, like, like, like)).fetchall()
+    """, token_params).fetchall()
     return jsonify([dict(r) for r in rows])
 
 # ── API for contacts list (AJAX, live search) ─────────────────────────────────
