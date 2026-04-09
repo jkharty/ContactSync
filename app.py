@@ -3,7 +3,7 @@ app.py — Flask web application.
 Serves the contact browser/editor to users on the local network.
 """
 import os, datetime, threading, functools, json as _json
-import pytz
+from zoneinfo import ZoneInfo
 from flask import (Flask, render_template, request, redirect,
                    url_for, session, jsonify, g)
 import config
@@ -13,12 +13,19 @@ from sync_engine import full_sync, run_scheduler, html_to_rtf
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 
-# Mountain Time timezone for all timestamps
-MT = pytz.timezone(config.TIMEZONE)
+_MOUNTAIN = ZoneInfo("America/Denver")
 
-def now_iso():
-    """Return current time in Mountain Time as ISO string."""
-    return datetime.datetime.now(MT).isoformat()
+@app.template_filter("mtn")
+def to_mountain(utc_str):
+    """Convert a UTC ISO string to Mountain Time (handles MST/MDT automatically)."""
+    if not utc_str:
+        return "—"
+    try:
+        s = str(utc_str)[:19].replace(" ", "T")
+        dt = datetime.datetime.fromisoformat(s).replace(tzinfo=datetime.timezone.utc)
+        return dt.astimezone(_MOUNTAIN).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return str(utc_str)[:19].replace("T", " ")
 
 # ── Easy Auth / Microsoft 365 login ───────────────────────────────────────────
 _DOMAIN      = "invisionvail.com"
@@ -54,7 +61,7 @@ def load_azure_user():
         return "Access denied: your Microsoft account is not authorised for this application.", 403
 
     username  = email.split("@")[0]
-    now       = now_iso()
+    now       = datetime.datetime.utcnow().isoformat()
     default_role = "admin" if email_lower == _ADMIN_EMAIL.lower() else "readonly"
 
     # Look up user in DB; create on first login.
@@ -95,7 +102,7 @@ with app.app_context():
               AND company IS NOT NULL AND company != ''
         """)
         # Pre-populate users table so admins can manage roles before first login
-        now = now_iso()
+        now = datetime.datetime.utcnow().isoformat()
         for uname, cfg in config.USERS.items():
             _db.execute(
                 "INSERT OR IGNORE INTO users (username, role, created_at) VALUES (?,?,?)",
@@ -163,7 +170,7 @@ def get_request_db():
 # ── Audit helper ──────────────────────────────────────────────────────────────
 def _audit(db, contact_id, exchange_id, display_name, changed_by,
            change_type, field_name=None, old_value=None, new_value=None):
-    now = now_iso()
+    now = datetime.datetime.utcnow().isoformat()
     db.execute("""
         INSERT INTO audit_log
           (contact_id, exchange_id, display_name, changed_by, change_type,
@@ -207,11 +214,10 @@ def _contact_where(query, category, is_admin):
         parts.append("(categories IS NULL OR categories NOT LIKE '%PERSONAL%')")
 
     if query:
-        # Split query into words for word-prefix matching
+        # Split query into tokens — each token must match somewhere across any field,
+        # matched at word boundaries (start of field or after a space).
         query_words = query.split()
-
         if query_words:
-            # Build word-prefix patterns for searchable fields
             fields = [
                 "display_name", "company", "email1", "email2", "email3",
                 "phone_business", "phone_mobile", "phone_home", "notes_plain",
@@ -219,26 +225,18 @@ def _contact_where(query, category, is_admin):
                 "home_street", "home_city", "home_state",
                 "other_street", "other_city", "other_state"
             ]
-
             field_conditions = []
             for field in fields:
                 field_patterns = []
                 field_params = []
                 for word in query_words:
-                    # Each word must match at start of field or after whitespace
                     field_patterns.append(f"({field} LIKE ? OR {field} LIKE ?)")
                     field_params.extend([f"{word}%", f"% {word}%"])
-
-                # All words must match in this field
                 if field_patterns:
-                    field_condition = " AND ".join(field_patterns)
-                    field_conditions.append(f"({field_condition})")
+                    field_conditions.append("(" + " AND ".join(field_patterns) + ")")
                     params.extend(field_params)
-
-            # Any of the fields can match
             if field_conditions:
                 parts.append("(" + " OR ".join(field_conditions) + ")")
-
     if category:
         parts.append("categories LIKE ?")
         params.append(f"%{category}%")
@@ -271,7 +269,7 @@ def login():
         password = request.form.get("password", "")
         user_cfg = config.USERS.get(username)
         if user_cfg and user_cfg["password"] == password:
-            now = now_iso()
+            now = datetime.datetime.utcnow().isoformat()
             db  = get_request_db()
             # Check DB for user — admin may have changed their role
             db_user = db.execute(
@@ -368,7 +366,7 @@ def edit_contact(cid):
     if request.method == "POST":
         new_html = request.form.get("notes_html", "")
         new_rtf  = html_to_rtf(new_html).encode("latin-1", errors="replace")
-        now      = now_iso()
+        now      = datetime.datetime.utcnow().isoformat()
         # Update local DB immediately
         db.execute("""
             UPDATE contacts SET notes_html=?, notes_rtf=?, synced_at=?
@@ -399,7 +397,7 @@ def edit_fields(cid):
         return render_template("error.html", message="Contact not found."), 404
 
     if request.method == "POST":
-        now     = now_iso()
+        now     = datetime.datetime.utcnow().isoformat()
         f       = request.form
         section = f.get("active_section", "identity")
 
@@ -453,7 +451,9 @@ def edit_fields(cid):
             first = field_data["first_name"]
             last  = field_data["last_name"]
             company = field_data.get("company", "").strip()
-            display_name = f"{first} {last}".strip() if (first or last) else (company or row["display_name"])
+            display_name = f.get("display_name", "").strip()
+            if not display_name:
+                display_name = f"{first} {last}".strip() or company or row["display_name"]
             db.execute("""
                 UPDATE contacts SET
                     first_name=:first_name, last_name=:last_name, display_name=:display_name,
@@ -540,8 +540,10 @@ def new_contact():
         first    = f.get("first_name", "").strip()
         last     = f.get("last_name", "").strip()
         company  = f.get("company", "").strip()
-        display_name = f"{first} {last}".strip() if (first or last) else (company or "New Contact")
-        now      = now_iso()
+        display_name = f.get("display_name", "").strip()
+        if not display_name:
+            display_name = f"{first} {last}".strip() or company or "New Contact"
+        now      = datetime.datetime.utcnow().isoformat()
         local_id = f"LOCAL-{uuid.uuid4()}"
 
         field_data = {
@@ -737,7 +739,7 @@ def change_user_role(uid):
     if new_role not in ("readonly", "viewedit", "admin"):
         return redirect(url_for("admin", tab="users"))
     db  = get_request_db()
-    now = now_iso()
+    now = datetime.datetime.utcnow().isoformat()
     # Prevent self-demotion
     target = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
     if target and target["username"] == session["username"] and new_role != "admin":
@@ -782,18 +784,27 @@ def retry_failed_writes():
 @login_required
 def api_search():
     q        = request.args.get("q", "").strip()
-    like     = f"%{q}%"
     db       = get_request_db()
     is_admin = session["role"] == "admin"
     personal = "" if is_admin else "AND (categories IS NULL OR categories NOT LIKE '%PERSONAL%')"
+    tokens   = q.split() if q else []
+    if not tokens:
+        return jsonify([])
+    token_clauses = " AND ".join(
+        "(display_name LIKE ? OR company LIKE ? OR email1 LIKE ? OR email2 LIKE ? OR phone_business LIKE ? OR phone_mobile LIKE ?)"
+        for _ in tokens
+    )
+    token_params = []
+    for token in tokens:
+        like = f"%{token}%"
+        token_params.extend([like] * 6)
     rows = db.execute(f"""
         SELECT id, display_name, company, email1
         FROM contacts
-        WHERE (display_name LIKE ? OR company LIKE ? OR email1 LIKE ?
-               OR email2 LIKE ? OR phone_business LIKE ? OR phone_mobile LIKE ?)
+        WHERE {token_clauses}
         {personal}
         ORDER BY display_name COLLATE NOCASE LIMIT 10
-    """, (like, like, like, like, like, like)).fetchall()
+    """, token_params).fetchall()
     return jsonify([dict(r) for r in rows])
 
 # ── API for contacts list (AJAX, live search) ─────────────────────────────────
@@ -851,7 +862,7 @@ def bulk_assign():
         return jsonify({"error": "Missing ids or category"}), 400
 
     db  = get_request_db()
-    now = now_iso()
+    now = datetime.datetime.utcnow().isoformat()
     updated = 0
     for cid in ids:
         row = db.execute(

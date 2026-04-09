@@ -71,7 +71,7 @@
     <div class="stat-card">
       <div class="stat-label">Last sync</div>
       <div style="font-size:.95rem; font-weight:500; margin-top:.5rem;">
-        {% if logs %}{{ logs[0].finished_at[:19].replace('T',' ') if logs[0].finished_at else 'running…' }}{% else %}Never{% endif %}
+        {% if logs %}{{ logs[0].finished_at | mtn if logs[0].finished_at else 'running…' }}{% else %}Never{% endif %}
       </div>
     </div>
     <div class="stat-card">
@@ -121,8 +121,8 @@
           </td>
           <td style="font-size:.8rem; color:var(--muted);">{{ u.email or '—' }}</td>
           <td><span class="badge badge-{{ u.role }}">{{ u.role }}</span></td>
-          <td style="font-size:.8rem; color:var(--muted);">{{ u.created_at[:10] if u.created_at else '—' }}</td>
-          <td style="font-size:.8rem; color:var(--muted);">{{ u.last_login[:16].replace('T',' ') if u.last_login else '—' }}</td>
+          <td style="font-size:.8rem; color:var(--muted);">{{ u.created_at | mtn if u.created_at else '—' }}</td>
+          <td style="font-size:.8rem; color:var(--muted);">{{ u.last_login | mtn if u.last_login else '—' }}</td>
           <td>
             {% if role == 'admin' %}
               {% if u.username != username %}
@@ -183,7 +183,7 @@
         {% for h in history %}
         <tr>
           <td style="font-size:.78rem; color:var(--muted); white-space:nowrap;">
-            {{ h.changed_at[:19].replace('T',' ') }}
+            {{ h.changed_at | mtn }}
           </td>
           <td style="font-size:.82rem;">{{ h.changed_by }}</td>
           <td style="font-size:.82rem;">
@@ -235,12 +235,12 @@
       <tbody>
         {% for log in logs %}
         <tr>
-          <td style="font-size:.82rem; white-space:nowrap;">{{ log.started_at[:19].replace('T',' ') if log.started_at else '—' }}</td>
+          <td style="font-size:.82rem; white-space:nowrap;">{{ log.started_at | mtn if log.started_at else '—' }}</td>
           <td><span class="chip">{{ log.message or 'sync' }}</span></td>
           <td style="color:var(--success)">{% if log.added %}+{{ log.added }}{% else %}—{% endif %}</td>
           <td style="color:var(--accent)">{% if log.updated %}{{ log.updated }}{% else %}—{% endif %}</td>
           <td style="color:{{ 'var(--danger)' if log.errors else 'var(--muted)' }}">{{ log.errors or 0 }}</td>
-          <td style="font-size:.82rem; color:var(--muted);">{{ log.finished_at[:19].replace('T',' ') if log.finished_at else '—' }}</td>
+          <td style="font-size:.82rem; color:var(--muted);">{{ log.finished_at | mtn if log.finished_at else '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -273,7 +273,7 @@
           <td><strong>{{ e.display_name or '—' }}</strong></td>
           <td><span class="chip" style="color:var(--danger);border-color:#f5c6c3;">{{ e.error_type }}</span></td>
           <td style="font-size:.8rem;">{{ e.error_detail }}</td>
-          <td style="font-size:.78rem; color:var(--muted);">{{ e.last_seen[:19].replace('T',' ') }}</td>
+          <td style="font-size:.78rem; color:var(--muted);">{{ e.last_seen | mtn }}</td>
           <td>
             <form method="POST" action="{{ url_for('resolve_error', eid=e.id) }}">
               <button type="submit" class="btn btn-secondary btn-sm">Resolve</button>
@@ -305,9 +305,9 @@
           <div style="font-weight:500; font-size:1rem;">{{ c.display_name }}</div>
           <div style="font-size:.78rem; color:var(--muted); margin-top:.2rem;">
             App edited by <strong>{{ c.app_edited_by }}</strong>
-            at {{ c.app_edited_at[:19].replace('T',' ') }}
+            at {{ c.app_edited_at | mtn }}
             &nbsp;·&nbsp;
-            Outlook changed at {{ c.outlook_modified_at[:19].replace('T',' ') if c.outlook_modified_at else 'unknown' }}
+            Outlook changed at {{ c.outlook_modified_at | mtn if c.outlook_modified_at else 'unknown' }}
           </div>
         </div>
         <span class="badge" style="background:#fef3e2; color:var(--warning);">Needs review</span>
@@ -366,7 +366,7 @@
             <td>{{ c.display_name }}</td>
             <td><span class="chip">{{ 'App' if c.winner == 'app' else 'Outlook' }}</span></td>
             <td style="color:var(--muted);">{{ c.resolved_by }}</td>
-            <td style="color:var(--muted); font-size:.82rem;">{{ c.resolved_at[:19].replace('T',' ') if c.resolved_at else '—' }}</td>
+            <td style="color:var(--muted); font-size:.82rem;">{{ c.resolved_at | mtn if c.resolved_at else '—' }}</td>
           </tr>
           {% endfor %}
         </tbody>

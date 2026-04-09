@@ -82,6 +82,23 @@
   .cca-btn-call  { background: #edfaf3; border-color: #a8e6c3; }
   .cca-btn-text  { background: var(--accent-light); border-color: #c8d6fa; }
 
+  /* ── Text number picker ── */
+  .text-picker-wrap { position: relative; }
+  .text-picker {
+    display: none; position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 300;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.12); min-width: 170px; padding: .3rem 0;
+    white-space: nowrap;
+  }
+  .text-picker.open { display: block; }
+  .text-picker a {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .75rem; padding: .45rem .85rem;
+    font-size: .82rem; color: var(--text); text-decoration: none;
+  }
+  .text-picker a:hover { background: var(--accent-light); }
+  .text-picker-label { font-size: .7rem; color: var(--muted); flex-shrink: 0; }
+
   /* ── Category bubbles ── */
   .contact-card-name-row {
     display: flex;
@@ -209,14 +226,27 @@
         </div>
         {% endif %}
       </div>
+      {% set ns = namespace(phones=[]) %}
+      {% if c.phone_mobile %}{% set ns.phones = ns.phones + [('Mobile', c.phone_mobile)] %}{% endif %}
+      {% if c.phone_business %}{% set ns.phones = ns.phones + [('Business', c.phone_business)] %}{% endif %}
+      {% if c.phone_home %}{% set ns.phones = ns.phones + [('Home', c.phone_home)] %}{% endif %}
       <div class="contact-card-actions">
         {% if primary_phone %}
         <a class="cca-btn cca-btn-call" href="tel:{{ primary_phone }}"
            onclick="event.stopPropagation()" title="Call">📞</a>
         {% endif %}
-        {% if c.phone_mobile %}
-        <a class="cca-btn cca-btn-text" href="sms:{{ c.phone_mobile }}"
+        {% if ns.phones|length == 1 %}
+        <a class="cca-btn cca-btn-text" href="sms:{{ ns.phones[0][1] }}"
            onclick="event.stopPropagation()" title="Text">💬</a>
+        {% elif ns.phones|length > 1 %}
+        <div class="text-picker-wrap" onclick="event.stopPropagation()">
+          <button class="cca-btn cca-btn-text" onclick="toggleTextPicker(this)" title="Text">💬</button>
+          <div class="text-picker">
+            {% for label, num in ns.phones %}
+            <a href="sms:{{ num }}">{{ num }}<span class="text-picker-label">{{ label }}</span></a>
+            {% endfor %}
+          </div>
+        </div>
         {% endif %}
         {% if c.email1 %}
         <a class="cca-btn" href="mailto:{{ c.email1 }}"
@@ -370,8 +400,19 @@
         const primaryPhone = c.phone_mobile || c.phone_business || c.phone_home || '';
         const callBtn = primaryPhone
           ? `<a class="cca-btn cca-btn-call" href="tel:${primaryPhone}" onclick="event.stopPropagation()" title="Call">📞</a>` : '';
-        const textBtn = c.phone_mobile
-          ? `<a class="cca-btn cca-btn-text" href="sms:${c.phone_mobile}" onclick="event.stopPropagation()" title="Text">💬</a>` : '';
+        const phones = [];
+        if (c.phone_mobile)   phones.push({label:'Mobile',   num:c.phone_mobile});
+        if (c.phone_business) phones.push({label:'Business', num:c.phone_business});
+        if (c.phone_home)     phones.push({label:'Home',     num:c.phone_home});
+        const textBtn = phones.length === 1
+          ? `<a class="cca-btn cca-btn-text" href="sms:${phones[0].num}" onclick="event.stopPropagation()" title="Text">💬</a>`
+          : phones.length > 1
+          ? `<div class="text-picker-wrap" onclick="event.stopPropagation()">
+               <button class="cca-btn cca-btn-text" onclick="toggleTextPicker(this)" title="Text">💬</button>
+               <div class="text-picker">
+                 ${phones.map(p=>`<a href="sms:${p.num}">${p.num}<span class="text-picker-label">${p.label}</span></a>`).join('')}
+               </div>
+             </div>` : '';
         const emailBtn = c.email1
           ? `<a class="cca-btn" href="mailto:${c.email1}" onclick="event.stopPropagation()" title="Email">✉</a>` : '';
         const categoryBubbles = renderCategoryBubbles(c.categories);
@@ -527,6 +568,17 @@
       clearSelection();
     }
   };
+
+  // ── Text number picker ───────────────────────────────────────────────────────
+  window.toggleTextPicker = function(btn) {
+    const picker = btn.nextElementSibling;
+    const isOpen = picker.classList.contains('open');
+    document.querySelectorAll('.text-picker.open').forEach(p => p.classList.remove('open'));
+    if (!isOpen) picker.classList.add('open');
+  };
+  document.addEventListener('click', function() {
+    document.querySelectorAll('.text-picker.open').forEach(p => p.classList.remove('open'));
+  });
 
   window.openCatModal = function() {
     document.getElementById('cat-modal-bg').classList.add('open');
