@@ -5,7 +5,6 @@ detects conflicts, writes edits back, and maintains the local database.
 import datetime
 import logging
 import re
-import pytz
 import config
 from database import get_db
 from exchangelib import (
@@ -32,13 +31,6 @@ _EmailAddress, _PhoneNumber, _PhysicalAddress = _discover_contact_subtypes()
 logging.basicConfig(level=logging.INFO,
     format="%(asctime)s [SYNC] %(levelname)s %(message)s")
 log = logging.getLogger("sync")
-
-# Mountain Time timezone for all timestamps
-MT = pytz.timezone(config.TIMEZONE)
-
-def now_iso():
-    """Return current time in Mountain Time as ISO string."""
-    return datetime.datetime.now(MT).isoformat()
 
 class RtfBody(ExtendedProperty):
     property_tag  = 0x1009
@@ -382,14 +374,14 @@ def contact_to_dict(c):
         "notes_html":      html_str,
         "notes_plain":     s(c.body),
         "last_modified":   str(c.last_modified_time) if c.last_modified_time else "",
-        "synced_at":       now_iso(),
+        "synced_at":       datetime.datetime.utcnow().isoformat(),
     }
 
 # ── Sync status helpers ───────────────────────────────────────────────────────
 def _set_sync_status(state, message=""):
     try:
         db = get_db()
-        now = now_iso()
+        now = datetime.datetime.utcnow().isoformat()
         if state == "running":
             db.execute("UPDATE sync_status SET state=?, started_at=?, last_message=? WHERE id=1",
                        (state, now, message))
@@ -417,7 +409,7 @@ def _check_and_handle_conflict(db, d, pending_write):
     pending write for it. This is a conflict — store both versions for admin.
     Returns True if conflict detected (skip normal update), False otherwise.
     """
-    now = now_iso()
+    now = datetime.datetime.utcnow().isoformat()
 
     # Check if there's already an unresolved conflict for this contact
     existing = db.execute(
@@ -456,7 +448,7 @@ def _check_and_handle_conflict(db, d, pending_write):
 def full_sync():
     log.info("Starting full sync ...")
     _set_sync_status("running", "Full sync in progress…")
-    start = now_iso()
+    start = datetime.datetime.utcnow().isoformat()
     added = updated = errors = 0
     try:
         account  = get_account()
@@ -552,7 +544,7 @@ def full_sync():
         log.error(f"Full sync failed: {e}")
         errors += 1
 
-    finish = now_iso()
+    finish = datetime.datetime.utcnow().isoformat()
     msg = f"Full sync complete — added:{added} updated:{updated} errors:{errors}"
     _set_sync_status("idle", msg)
     _log_sync(start, finish, added, updated, 0, errors, "full")
@@ -561,7 +553,7 @@ def full_sync():
 def force_refresh():
     log.info("Force refresh starting ...")
     _set_sync_status("running", "Force refresh in progress…")
-    start = now_iso()
+    start = datetime.datetime.utcnow().isoformat()
     updated = errors = 0
     try:
         account  = get_account()
@@ -604,7 +596,7 @@ def force_refresh():
         log.error(f"Force refresh failed: {e}")
         errors += 1
 
-    finish = now_iso()
+    finish = datetime.datetime.utcnow().isoformat()
     _set_sync_status("idle", f"Force refresh complete — updated:{updated} errors:{errors}")
     _log_sync(start, finish, 0, updated, 0, errors, "force_refresh")
     log.info(f"Force refresh done — updated:{updated} errors:{errors}")
@@ -613,7 +605,7 @@ def force_refresh():
 def incremental_sync():
     log.info("Incremental sync ...")
     _set_sync_status("running", "Incremental sync in progress…")
-    start = now_iso()
+    start = datetime.datetime.utcnow().isoformat()
     added = updated = errors = 0
     try:
         db  = get_db()
@@ -705,7 +697,7 @@ def incremental_sync():
         log.error(f"Incremental sync error: {e}")
         errors += 1
 
-    finish = now_iso()
+    finish = datetime.datetime.utcnow().isoformat()
     msg = f"Last sync: added:{added} updated:{updated} errors:{errors}"
     _set_sync_status("idle", msg)
     _log_sync(start, finish, added, updated, 0, errors, "incremental")
@@ -893,7 +885,7 @@ def _process_pending_writes(db, account):
 def delete_contact(exchange_id, display_name, deleted_by):
     """Delete a contact from both Exchange and the local database."""
     from exchangelib import ItemId
-    now = now_iso()
+    now = datetime.datetime.utcnow().isoformat()
     errors = []
 
     # Delete from Exchange
@@ -944,7 +936,7 @@ def resolve_conflict(conflict_id, winner, resolved_by):
         db.close()
         return False
 
-    now = now_iso()
+    now = datetime.datetime.utcnow().isoformat()
 
     if winner == "app":
         # Keep app version — mark pending write as still pending so it gets pushed
@@ -999,7 +991,7 @@ def resolve_conflict(conflict_id, winner, resolved_by):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def _log_contact_error(db, exchange_id, display_name, error_type, error_detail):
-    now = now_iso()
+    now = datetime.datetime.utcnow().isoformat()
     existing = db.execute(
         "SELECT id FROM sync_errors WHERE exchange_id=? AND resolved=0",
         (exchange_id,)
