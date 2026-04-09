@@ -3,6 +3,7 @@ app.py — Flask web application.
 Serves the contact browser/editor to users on the local network.
 """
 import os, datetime, threading, functools, json as _json
+import pytz
 from flask import (Flask, render_template, request, redirect,
                    url_for, session, jsonify, g)
 import config
@@ -11,6 +12,13 @@ from sync_engine import full_sync, run_scheduler, html_to_rtf
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
+
+# Mountain Time timezone for all timestamps
+MT = pytz.timezone(config.TIMEZONE)
+
+def now_iso():
+    """Return current time in Mountain Time as ISO string."""
+    return datetime.datetime.now(MT).isoformat()
 
 # ── Easy Auth / Microsoft 365 login ───────────────────────────────────────────
 _DOMAIN      = "invisionvail.com"
@@ -46,7 +54,7 @@ def load_azure_user():
         return "Access denied: your Microsoft account is not authorised for this application.", 403
 
     username  = email.split("@")[0]
-    now       = datetime.datetime.utcnow().isoformat()
+    now       = now_iso()
     default_role = "admin" if email_lower == _ADMIN_EMAIL.lower() else "readonly"
 
     # Look up user in DB; create on first login.
@@ -87,7 +95,7 @@ with app.app_context():
               AND company IS NOT NULL AND company != ''
         """)
         # Pre-populate users table so admins can manage roles before first login
-        now = datetime.datetime.utcnow().isoformat()
+        now = now_iso()
         for uname, cfg in config.USERS.items():
             _db.execute(
                 "INSERT OR IGNORE INTO users (username, role, created_at) VALUES (?,?,?)",
@@ -155,7 +163,7 @@ def get_request_db():
 # ── Audit helper ──────────────────────────────────────────────────────────────
 def _audit(db, contact_id, exchange_id, display_name, changed_by,
            change_type, field_name=None, old_value=None, new_value=None):
-    now = datetime.datetime.utcnow().isoformat()
+    now = now_iso()
     db.execute("""
         INSERT INTO audit_log
           (contact_id, exchange_id, display_name, changed_by, change_type,
@@ -263,7 +271,7 @@ def login():
         password = request.form.get("password", "")
         user_cfg = config.USERS.get(username)
         if user_cfg and user_cfg["password"] == password:
-            now = datetime.datetime.utcnow().isoformat()
+            now = now_iso()
             db  = get_request_db()
             # Check DB for user — admin may have changed their role
             db_user = db.execute(
@@ -360,7 +368,7 @@ def edit_contact(cid):
     if request.method == "POST":
         new_html = request.form.get("notes_html", "")
         new_rtf  = html_to_rtf(new_html).encode("latin-1", errors="replace")
-        now      = datetime.datetime.utcnow().isoformat()
+        now      = now_iso()
         # Update local DB immediately
         db.execute("""
             UPDATE contacts SET notes_html=?, notes_rtf=?, synced_at=?
@@ -391,7 +399,7 @@ def edit_fields(cid):
         return render_template("error.html", message="Contact not found."), 404
 
     if request.method == "POST":
-        now     = datetime.datetime.utcnow().isoformat()
+        now     = now_iso()
         f       = request.form
         section = f.get("active_section", "identity")
 
@@ -533,7 +541,7 @@ def new_contact():
         last     = f.get("last_name", "").strip()
         company  = f.get("company", "").strip()
         display_name = f"{first} {last}".strip() if (first or last) else (company or "New Contact")
-        now      = datetime.datetime.utcnow().isoformat()
+        now      = now_iso()
         local_id = f"LOCAL-{uuid.uuid4()}"
 
         field_data = {
@@ -729,7 +737,7 @@ def change_user_role(uid):
     if new_role not in ("readonly", "viewedit", "admin"):
         return redirect(url_for("admin", tab="users"))
     db  = get_request_db()
-    now = datetime.datetime.utcnow().isoformat()
+    now = now_iso()
     # Prevent self-demotion
     target = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
     if target and target["username"] == session["username"] and new_role != "admin":
@@ -843,7 +851,7 @@ def bulk_assign():
         return jsonify({"error": "Missing ids or category"}), 400
 
     db  = get_request_db()
-    now = datetime.datetime.utcnow().isoformat()
+    now = now_iso()
     updated = 0
     for cid in ids:
         row = db.execute(

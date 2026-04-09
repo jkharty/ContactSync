@@ -34,7 +34,12 @@ MAILBOX_EMAIL = _require("MAILBOX_EMAIL")
 SECRET_KEY = _require("SECRET_KEY")
 
 # ── Sync settings ─────────────────────────────────────────────────────────────
-SYNC_INTERVAL_SECONDS = int(os.environ.get("SYNC_INTERVAL_SECONDS", "600"))
+# Default: 30 minutes (1800 seconds)
+SYNC_INTERVAL_SECONDS = int(os.environ.get("SYNC_INTERVAL_SECONDS", "1800"))
+
+# ── Timezone ──────────────────────────────────────────────────────────────────
+# All logs and timestamps use Mountain Time (US/Mountain)
+TIMEZONE = "US/Mountain"
 
 # ── Web server ────────────────────────────────────────────────────────────────
 WEB_PORT = int(os.environ.get("WEB_PORT", "5000"))
