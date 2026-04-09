@@ -451,7 +451,9 @@ def edit_fields(cid):
             first = field_data["first_name"]
             last  = field_data["last_name"]
             company = field_data.get("company", "").strip()
-            display_name = f"{first} {last}".strip() if (first or last) else (company or row["display_name"])
+            display_name = f.get("display_name", "").strip()
+            if not display_name:
+                display_name = f"{first} {last}".strip() or company or row["display_name"]
             db.execute("""
                 UPDATE contacts SET
                     first_name=:first_name, last_name=:last_name, display_name=:display_name,
@@ -538,7 +540,9 @@ def new_contact():
         first    = f.get("first_name", "").strip()
         last     = f.get("last_name", "").strip()
         company  = f.get("company", "").strip()
-        display_name = f"{first} {last}".strip() if (first or last) else (company or "New Contact")
+        display_name = f.get("display_name", "").strip()
+        if not display_name:
+            display_name = f"{first} {last}".strip() or company or "New Contact"
         now      = datetime.datetime.utcnow().isoformat()
         local_id = f"LOCAL-{uuid.uuid4()}"
 
