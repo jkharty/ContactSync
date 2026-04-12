@@ -8,7 +8,7 @@ import re
 import config
 from database import get_db
 from exchangelib import (
-    Account, Configuration, ExtendedProperty, Contact, DELEGATE, IMPERSONATION,
+    Account, Configuration, ExtendedProperty, Contact, IMPERSONATION,
     HTMLBody, EWSDateTime, UTC, Identity
 )
 from exchangelib.credentials import OAuth2AuthorizationCodeCredentials
@@ -42,7 +42,6 @@ Contact.register("rtf_body", RtfBody)
 _cached_account = None
 
 from html.parser import HTMLParser
-import html as _html_mod
 
 class _QuillToRTF(HTMLParser):
     """

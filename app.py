@@ -2,7 +2,7 @@
 app.py — Flask web application.
 Serves the contact browser/editor to users on the local network.
 """
-import os, datetime, threading, functools, json as _json
+import os, datetime, threading, functools, uuid, json as _json
 from zoneinfo import ZoneInfo
 from flask import (Flask, render_template, request, redirect,
                    url_for, session, jsonify, g)
@@ -13,7 +13,7 @@ from sync_engine import full_sync, run_scheduler, html_to_rtf
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 
-_MOUNTAIN = ZoneInfo("America/Denver")
+_MOUNTAIN = ZoneInfo(config.TIMEZONE)
 
 @app.template_filter("mtn")
 def to_mountain(utc_str):
@@ -28,8 +28,8 @@ def to_mountain(utc_str):
         return str(utc_str)[:19].replace("T", " ")
 
 # ── Easy Auth / Microsoft 365 login ───────────────────────────────────────────
-_DOMAIN      = "invisionvail.com"
-_ADMIN_EMAIL = "johnh@invisionvail.com"
+_DOMAIN      = config.DOMAIN
+_ADMIN_EMAIL = config.ADMIN_EMAIL
 
 @app.before_request
 def load_azure_user():
@@ -257,6 +257,23 @@ def _available_cats(db, where_sql, params):
                 cat_set.add(c)
     return sorted(cat_set)
 
+def _all_categories(db, extra_cats_str=None):
+    """Return sorted set of all category strings known to the system.
+    Pass extra_cats_str (pipe-delimited) to include a contact's own categories."""
+    rows = db.execute(
+        "SELECT categories FROM contacts WHERE categories IS NOT NULL AND categories != ''"
+    ).fetchall()
+    cat_set = set()
+    for r in rows:
+        for cat in r["categories"].split("|"):
+            if cat.strip():
+                cat_set.add(cat.strip())
+    if extra_cats_str:
+        for cat in extra_cats_str.split("|"):
+            if cat.strip():
+                cat_set.add(cat.strip())
+    return sorted(cat_set)
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -390,7 +407,6 @@ def edit_contact(cid):
 @login_required
 @role_required("viewedit", "admin")
 def edit_fields(cid):
-    import json
     db  = get_request_db()
     row = db.execute("SELECT * FROM contacts WHERE id=?", (cid,)).fetchone()
     if not row:
@@ -506,20 +522,7 @@ def edit_fields(cid):
 
     # GET — collect all categories known to the system
     section = request.args.get("section", "identity")
-    cat_rows = db.execute(
-        "SELECT categories FROM contacts WHERE categories IS NOT NULL AND categories != ''"
-    ).fetchall()
-    cat_set = set()
-    for r in cat_rows:
-        for cat in r["categories"].split("|"):
-            if cat.strip():
-                cat_set.add(cat.strip())
-    # Also include the contact's own categories (in case they're unique)
-    if row["categories"]:
-        for cat in row["categories"].split("|"):
-            if cat.strip():
-                cat_set.add(cat.strip())
-    all_categories = sorted(cat_set)
+    all_categories = _all_categories(db, extra_cats_str=row["categories"])
 
     return render_template("edit_fields.html", c=row, section=section,
         role=session["role"], username=session["username"],
@@ -530,7 +533,6 @@ def edit_fields(cid):
 @login_required
 @role_required("viewedit", "admin")
 def new_contact():
-    import uuid, json as _json
     db = get_request_db()
 
     if request.method == "POST":
@@ -605,14 +607,7 @@ def new_contact():
         return redirect(url_for("contact_detail", cid=new_id))
 
     # GET — empty form
-    cat_rows = db.execute(
-        "SELECT categories FROM contacts WHERE categories IS NOT NULL AND categories != ''"
-    ).fetchall()
-    cat_set = set()
-    for r in cat_rows:
-        for cat in r["categories"].split("|"):
-            if cat.strip():
-                cat_set.add(cat.strip())
+    all_categories = _all_categories(db)
     empty = {k: "" for k in [
         "id", "display_name", "first_name", "last_name", "company", "job_title",
         "email1", "email2", "email3", "phone_business", "phone_mobile", "phone_home",
@@ -623,7 +618,7 @@ def new_contact():
     ]}
     return render_template("edit_fields.html", c=empty, section="identity",
         role=session["role"], username=session["username"],
-        all_categories=sorted(cat_set), new_contact=True)
+        all_categories=all_categories, new_contact=True)
 
 # ── Delete contact ────────────────────────────────────────────────────────────
 @app.route("/contacts/<int:cid>/delete", methods=["POST"])
@@ -742,9 +737,7 @@ def change_user_role(uid):
     now = datetime.datetime.utcnow().isoformat()
     # Prevent self-demotion
     target = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
-    if target and target["username"] == session["username"] and new_role != "admin":
-        pass  # silently ignore self-demotion
-    else:
+    if not (target and target["username"] == session["username"] and new_role != "admin"):
         db.execute("UPDATE users SET role=?, updated_at=? WHERE id=?", (new_role, now, uid))
         db.commit()
     return redirect(url_for("admin", tab="users"))

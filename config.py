@@ -45,6 +45,31 @@ WEB_PORT = int(os.environ.get("WEB_PORT", "5000"))
 # Azure:  /home/data/contacts.db  (set DB_PATH in App Settings)
 DB_PATH = os.environ.get("DB_PATH", "instance/contacts.db")
 
+# ── Application constants ─────────────────────────────────────────────────────
+# Allowed email domain for Easy Auth / Microsoft 365 login
+DOMAIN      = os.environ.get("APP_DOMAIN", "invisionvail.com")
+# Email address that gets the 'admin' role on first login
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "johnh@invisionvail.com")
+# IANA timezone name used for display in the admin UI
+TIMEZONE    = os.environ.get("APP_TIMEZONE", "America/Denver")
+# Contacts per page on the main list
+PAGE_SIZE   = int(os.environ.get("PAGE_SIZE", "50"))
+# Short abbreviations shown in category bubbles (key = full name, value = 3-char code)
+CATEGORY_ABBREVS = {
+    "Architects":                  "ARC",
+    "Builder":                     "BLD",
+    "Current Customer":            "CC",
+    "Electricians":                "ELC",
+    "General":                     "GEN",
+    "Interior Designer":           "IND",
+    "Mfg Reps and Distributors":   "MFG",
+    "Past Customer":               "PC",
+    "Personal":                    "PRS",
+    "Property Manager":            "PMG",
+    "Real Estate Agent":           "REA",
+    "Sub Contractor":              "SUB",
+}
+
 # ── User accounts ─────────────────────────────────────────────────────────────
 # Stored as: username:password:role,username:password:role,...
 # Example:   viewer:secret1:readonly,editor:secret2:editor,admin:secret3:admin

@@ -209,9 +209,8 @@
           <div class="contact-card-name">{{ c.display_name or '(no name)' }}</div>
           {% if c.categories %}
           <div class="contact-card-name-bubbles">
-            {% set cat_map = {'Architects':'ARC','Builder':'BLD','Current Customer':'CC','Electricians':'ELC','General':'GEN','Interior Designer':'IND','Mfg Reps and Distributors':'MFG','Past Customer':'PC','Personal':'PRS','Property Manager':'PMG','Real Estate Agent':'REA','Sub Contractor':'SUB'} %}
             {% for cat in c.categories.split('|') %}
-            {% set abbrev = cat_map.get(cat, cat[:3].upper()) %}
+            {% set abbrev = config.CATEGORY_ABBREVS.get(cat, cat[:3].upper()) %}
             <span class="category-bubble {{ abbrev.lower() }}">{{ abbrev }}</span>
             {% endfor %}
           </div>
@@ -367,12 +366,8 @@
         `<option value="${c}"${c === cat ? ' selected' : ''}>${c}</option>`
       ).join('');
 
-    // Category abbreviation mapping
-    const catMap = {
-      'Architects':'ARC','Builder':'BLD','Current Customer':'CC','Electricians':'ELC',
-      'General':'GEN','Interior Designer':'IND','Mfg Reps and Distributors':'MFG',
-      'Past Customer':'PC','Personal':'PRS','Property Manager':'PMG','Real Estate Agent':'REA','Sub Contractor':'SUB'
-    };
+    // Category abbreviation mapping (single-sourced from config.CATEGORY_ABBREVS)
+    const catMap = {{ config.CATEGORY_ABBREVS | tojson }};
 
     function renderCategoryBubbles(categories) {
       if (!categories) return '';

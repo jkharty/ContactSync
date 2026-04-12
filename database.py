@@ -189,8 +189,8 @@ def init_db():
         try:
             conn.execute(sql)
             conn.commit()
-        except Exception:
-            pass  # Column already exists
+        except sqlite3.OperationalError as e:
+            print(f"[DB] Migration skipped ({e}): {sql[:60]}")
 
     conn.close()
     print("[DB] Database initialised.")
