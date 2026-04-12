@@ -40,29 +40,22 @@
 {% endif %}
 
 <!-- Name + Identity header -->
-{% set _ch = (c.display_name or 'A')[0].upper() %}
-{% set _av = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.find(_ch) % 8 %}
 <div class="card contact-header-card">
-  <div class="contact-header-inner">
-    <span class="contact-avatar contact-avatar-lg av-{{ _av }}" aria-hidden="true">{{ _ch }}</span>
-    <div>
-      <h1 class="contact-name-heading">{{ c.display_name or '(no name)' }}</h1>
-      {% if c.job_title or c.company %}
-      <p class="contact-subtitle">
-        {% if c.job_title %}{{ c.job_title }}{% endif %}
-        {% if c.job_title and c.company %} &mdash; {% endif %}
-        {% if c.company %}{{ c.company }}{% endif %}
-      </p>
-      {% endif %}
-      {% if c.categories %}
-      <div class="contact-cat-chips">
-        {% for cat in c.categories.split('|') %}{% if cat.strip() %}
-        <span class="chip">{{ cat.strip() }}</span>
-        {% endif %}{% endfor %}
-      </div>
-      {% endif %}
-    </div>
+  <h1 class="contact-name-heading">{{ c.display_name or '(no name)' }}</h1>
+  {% if c.job_title or c.company %}
+  <p class="contact-subtitle">
+    {% if c.job_title %}{{ c.job_title }}{% endif %}
+    {% if c.job_title and c.company %} &mdash; {% endif %}
+    {% if c.company %}{{ c.company }}{% endif %}
+  </p>
+  {% endif %}
+  {% if c.categories %}
+  <div class="contact-cat-chips">
+    {% for cat in c.categories.split('|') %}{% if cat.strip() %}
+    <span class="chip">{{ cat.strip() }}</span>
+    {% endif %}{% endfor %}
   </div>
+  {% endif %}
 </div>
 
 {# ── Collect phones and emails once for reuse ── #}
@@ -224,7 +217,7 @@
   </div>
 
   {# ── Notes ── #}
-  <div class="acc-card" id="acc-notes">
+  <div class="acc-card open" id="acc-notes">
     <div class="acc-header" onclick="toggleAcc('acc-notes')">
       <span class="acc-title">Notes</span>
       <span class="acc-chevron">&#9660;</span>
