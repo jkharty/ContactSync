@@ -17,14 +17,12 @@
   </div>
 
   {% for c in pending %}
-  <div class="card" style="margin-bottom:1.25rem; overflow:hidden;" id="conflict-{{ c.id }}">
+  <div class="card card-overflow" style="margin-bottom:1.25rem;" id="conflict-{{ c.id }}">
     <!-- Header -->
-    <div style="padding:1.25rem; border-bottom:1px solid var(--border);
-                display:flex; align-items:center; justify-content:space-between;
-                background:#fffdf7;">
+    <div class="card-body" style="border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:#fffdf7;">
       <div>
         <div style="font-weight:500; font-size:1rem;">{{ c.display_name }}</div>
-        <div style="font-size:.78rem; color:var(--muted); margin-top:.2rem;">
+        <div class="td-meta" style="margin-top:.2rem;">
           App edited by <strong>{{ c.app_edited_by }}</strong>
           at {{ c.app_edited_at[:19].replace('T',' ') }}
           &nbsp;·&nbsp;
@@ -38,42 +36,32 @@
     <div style="display:grid; grid-template-columns:1fr 1fr;">
 
       <!-- App version -->
-      <div style="padding:1.25rem; border-right:1px solid var(--border);">
-        <div style="font-size:.72rem; font-weight:500; text-transform:uppercase;
-                    letter-spacing:.06em; color:var(--accent); margin-bottom:.75rem;">
+      <div class="card-body" style="border-right:1px solid var(--border);">
+        <div class="addr-label" style="color:var(--accent); margin-bottom:.75rem;">
           App version (edited by {{ c.app_edited_by }})
         </div>
-        <div class="notes-body" style="font-size:.85rem; min-height:80px;">
-          {% if c.app_html %}
-            {{ c.app_html | safe }}
-          {% else %}
-            <em style="color:var(--muted);">No notes</em>
-          {% endif %}
+        <div class="notes-body" style="min-height:80px;">
+          {% if c.app_html %}{{ c.app_html | safe }}
+          {% else %}<em class="text-muted">No notes</em>{% endif %}
         </div>
         <div style="margin-top:1rem;">
-          <button class="btn btn-primary btn-sm"
-                  onclick="resolveConflict({{ c.id }}, 'app', this)">
+          <button class="btn btn-primary btn-sm" onclick="resolveConflict({{ c.id }}, 'app', this)">
             ✓ Use app version
           </button>
         </div>
       </div>
 
       <!-- Outlook version -->
-      <div style="padding:1.25rem;">
-        <div style="font-size:.72rem; font-weight:500; text-transform:uppercase;
-                    letter-spacing:.06em; color:var(--warning); margin-bottom:.75rem;">
+      <div class="card-body">
+        <div class="addr-label" style="color:var(--warning); margin-bottom:.75rem;">
           Outlook version (changed in Exchange)
         </div>
-        <div class="notes-body" style="font-size:.85rem; min-height:80px;">
-          {% if c.outlook_html %}
-            {{ c.outlook_html | safe }}
-          {% else %}
-            <em style="color:var(--muted);">No notes</em>
-          {% endif %}
+        <div class="notes-body" style="min-height:80px;">
+          {% if c.outlook_html %}{{ c.outlook_html | safe }}
+          {% else %}<em class="text-muted">No notes</em>{% endif %}
         </div>
         <div style="margin-top:1rem;">
-          <button class="btn btn-secondary btn-sm"
-                  onclick="resolveConflict({{ c.id }}, 'outlook', this)">
+          <button class="btn btn-secondary btn-sm" onclick="resolveConflict({{ c.id }}, 'outlook', this)">
             ✓ Use Outlook version
           </button>
         </div>
@@ -83,7 +71,7 @@
   {% endfor %}
 </div>
 {% else %}
-<div class="card" style="padding:3rem; text-align:center; color:var(--muted); margin-bottom:1.5rem;">
+<div class="card card-body" style="text-align:center; color:var(--muted); margin-bottom:1.5rem; padding:3rem;">
   <div style="font-size:2rem; margin-bottom:.75rem;">✓</div>
   <p style="font-size:1rem; font-weight:500; margin-bottom:.35rem;">No pending conflicts</p>
   <p style="font-size:.875rem;">All edits are in sync between the app and Outlook.</p>
@@ -93,7 +81,7 @@
 {% if resolved %}
 <div>
   <div class="section-title" style="margin-bottom:.75rem;">Recently resolved</div>
-  <div class="card" style="overflow:hidden;">
+  <div class="card card-overflow">
     <table>
       <thead>
         <tr>
@@ -114,10 +102,8 @@
             <span class="badge badge-readonly">Outlook version</span>
             {% endif %}
           </td>
-          <td style="color:var(--muted);">{{ c.resolved_by }}</td>
-          <td style="color:var(--muted); font-size:.82rem;">
-            {{ c.resolved_at[:19].replace('T',' ') if c.resolved_at else '—' }}
-          </td>
+          <td class="td-meta">{{ c.resolved_by }}</td>
+          <td class="td-meta">{{ c.resolved_at[:19].replace('T',' ') if c.resolved_at else '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>

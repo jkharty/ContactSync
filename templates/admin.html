@@ -1,36 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Admin{% endblock %}
 
-{% block extra_head %}
-<style>
-  .admin-tab-bar {
-    display: flex; gap: .35rem; margin-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border); padding-bottom: .75rem;
-    flex-wrap: wrap;
-  }
-  .admin-tab-btn {
-    padding: .4rem .9rem; border-radius: 6px; font-size: .875rem; font-weight: 500;
-    cursor: pointer; border: 1px solid transparent; background: none;
-    color: var(--muted); font-family: inherit; text-decoration: none; transition: all .15s;
-  }
-  .admin-tab-btn:hover { background: var(--accent-light); color: var(--accent); }
-  .admin-tab-btn.active { background: var(--accent-light); color: var(--accent); border-color: #c8d6fa; }
-  .admin-panel { display: none; }
-  .admin-panel.active { display: block; }
-  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-               box-shadow: var(--shadow); padding: 1.25rem; }
-  .stat-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .4rem; }
-  .stat-value { font-family: 'DM Serif Display', serif; font-size: 2.2rem; line-height: 1; }
-  /* Change history */
-  .hist-field { font-size: .78rem; color: var(--muted); }
-  .hist-val { font-size: .8rem; color: var(--text); }
-  .hist-arrow { color: var(--muted); margin: 0 .3rem; }
-  @media (max-width: 600px) {
-    .stat-grid { grid-template-columns: 1fr 1fr; }
-    th, td { font-size: .78rem; padding: .5rem .65rem; }
-  }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -42,23 +12,21 @@
 </div>
 
 <!-- Tab bar -->
-<div class="admin-tab-bar">
-  <button class="admin-tab-btn" data-panel="overview">Overview</button>
-  {% if role == 'admin' %}<button class="admin-tab-btn" data-panel="users">Users</button>{% endif %}
-  <button class="admin-tab-btn" data-panel="history">Change history</button>
-  <button class="admin-tab-btn" data-panel="synclog">Sync log</button>
-  <button class="admin-tab-btn" data-panel="errors">
-    Errors{% if errors %} <span style="background:var(--danger);color:#fff;border-radius:10px;
-    font-size:.68rem;padding:.1rem .45rem;margin-left:.25rem;">{{ errors|length }}</span>{% endif %}
+<div class="tab-bar">
+  <button class="tab-btn" data-panel="overview">Overview</button>
+  {% if role == 'admin' %}<button class="tab-btn" data-panel="users">Users</button>{% endif %}
+  <button class="tab-btn" data-panel="history">Change history</button>
+  <button class="tab-btn" data-panel="synclog">Sync log</button>
+  <button class="tab-btn" data-panel="errors">
+    Errors{% if errors %} <span class="tab-badge tab-badge-danger">{{ errors|length }}</span>{% endif %}
   </button>
-  <button class="admin-tab-btn" data-panel="conflicts">
-    Conflicts{% if conflicts_pending %} <span style="background:var(--warning);color:#fff;border-radius:10px;
-    font-size:.68rem;padding:.1rem .45rem;margin-left:.25rem;">{{ conflicts_pending|length }}</span>{% endif %}
+  <button class="tab-btn" data-panel="conflicts">
+    Conflicts{% if conflicts_pending %} <span class="tab-badge tab-badge-warning">{{ conflicts_pending|length }}</span>{% endif %}
   </button>
 </div>
 
 <!-- ── Overview ─────────────────────────────────────────────────────────── -->
-<div id="panel-overview" class="admin-panel">
+<div id="panel-overview" class="section-panel">
   <div class="stat-grid">
     <div class="stat-card">
       <div class="stat-label">Total contacts</div>
@@ -66,11 +34,11 @@
     </div>
     <div class="stat-card">
       <div class="stat-label">Pending write-backs</div>
-      <div class="stat-value" style="color:{{ 'var(--warning)' if pending > 0 else 'var(--success)' }}">{{ pending }}</div>
+      <div class="stat-value" style="color:{{ 'var(--warning)' if pending > 0 else 'var(--success)' }};">{{ pending }}</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">Last sync</div>
-      <div style="font-size:.95rem; font-weight:500; margin-top:.5rem;">
+      <div class="stat-value-inline">
         {% if logs %}{{ logs[0].finished_at | mtn if logs[0].finished_at else 'running…' }}{% else %}Never{% endif %}
       </div>
     </div>
@@ -80,15 +48,15 @@
     </div>
   </div>
 
-  <div class="card" style="padding:1.25rem;">
+  <div class="card card-body">
     <div class="section-title">Sync controls</div>
     {% if role == 'admin' %}
-    <div style="display:flex; gap:.75rem; align-items:center; flex-wrap:wrap;">
+    <div class="sync-row">
       <button class="btn btn-primary" onclick="triggerSync()" id="sync-btn">↻ &nbsp;Run full sync now</button>
-      <span id="sync-status" style="font-size:.85rem; color:var(--muted);"></span>
+      <span id="sync-status" class="sync-status-text"></span>
     </div>
     {% endif %}
-    <p style="margin-top:.75rem; font-size:.8rem; color:var(--muted);">
+    <p class="form-hint">
       Incremental sync runs automatically every {{ config.SYNC_INTERVAL_SECONDS // 60 }} minutes.
       {% if role != 'admin' %}Only admins can trigger a manual sync.{% endif %}
     </p>
@@ -96,9 +64,9 @@
 </div>
 
 <!-- ── Users ─────────────────────────────────────────────────────────────── -->
-<div id="panel-users" class="admin-panel">
-  <div class="card" style="overflow:hidden;">
-    <div style="padding:1.25rem 1.25rem .5rem;">
+<div id="panel-users" class="section-panel">
+  <div class="card card-overflow">
+    <div class="card-body">
       <div class="section-title">User accounts</div>
     </div>
     <table>
@@ -117,17 +85,17 @@
         {% for u in users %}
         <tr>
           <td><strong>{{ u.username }}</strong>
-            {% if u.username == username %}<span class="chip" style="margin-left:.4rem;">you</span>{% endif %}
+            {% if u.username == username %}<span class="chip">you</span>{% endif %}
           </td>
-          <td style="font-size:.8rem; color:var(--muted);">{{ u.email or '—' }}</td>
+          <td class="td-meta">{{ u.email or '—' }}</td>
           <td><span class="badge badge-{{ u.role }}">{{ u.role }}</span></td>
-          <td style="font-size:.8rem; color:var(--muted);">{{ u.created_at | mtn if u.created_at else '—' }}</td>
-          <td style="font-size:.8rem; color:var(--muted);">{{ u.last_login | mtn if u.last_login else '—' }}</td>
+          <td class="td-meta">{{ u.created_at | mtn if u.created_at else '—' }}</td>
+          <td class="td-meta">{{ u.last_login | mtn if u.last_login else '—' }}</td>
           <td>
             {% if role == 'admin' %}
               {% if u.username != username %}
-              <form method="POST" action="{{ url_for('change_user_role', uid=u.id) }}" style="display:flex; gap:.4rem;">
-                <select name="role" style="font-size:.8rem; padding:.25rem .5rem;">
+              <form method="POST" action="{{ url_for('change_user_role', uid=u.id) }}" class="inline-form">
+                <select name="role" class="inline-select">
                   {% for r in ['readonly','viewedit','admin'] %}
                   <option value="{{ r }}" {% if r == u.role %}selected{% endif %}>{{ r }}</option>
                   {% endfor %}
@@ -135,10 +103,10 @@
                 <button type="submit" class="btn btn-secondary btn-sm">Save</button>
               </form>
               {% else %}
-              <span style="font-size:.8rem; color:var(--muted);">Cannot change own role</span>
+              <span class="td-meta">Cannot change own role</span>
               {% endif %}
             {% else %}
-            <span style="font-size:.8rem; color:var(--muted);">—</span>
+            <span class="td-meta">—</span>
             {% endif %}
           </td>
           <td>
@@ -151,7 +119,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--muted);">
+        <tr><td colspan="5" class="td-meta" style="text-align:center;padding:1.5rem;">
           No users have signed in yet.
         </td></tr>
         {% endfor %}
@@ -161,11 +129,11 @@
 </div>
 
 <!-- ── Change history ─────────────────────────────────────────────────────── -->
-<div id="panel-history" class="admin-panel">
-  <div class="card" style="overflow:hidden;">
-    <div style="padding:1.25rem 1.25rem .5rem;">
+<div id="panel-history" class="section-panel">
+  <div class="card card-overflow">
+    <div class="card-body">
       <div class="section-title">Change history</div>
-      <p style="font-size:.82rem; color:var(--muted);">All field edits by any user. Newest first. Last 200 entries shown.</p>
+      <p class="td-meta">All field edits by any user. Newest first. Last 200 entries shown.</p>
     </div>
     {% if history %}
     <table>
@@ -182,22 +150,20 @@
       <tbody>
         {% for h in history %}
         <tr>
-          <td style="font-size:.78rem; color:var(--muted); white-space:nowrap;">
-            {{ h.changed_at | mtn }}
-          </td>
-          <td style="font-size:.82rem;">{{ h.changed_by }}</td>
-          <td style="font-size:.82rem;">
+          <td class="td-meta" style="white-space:nowrap;">{{ h.changed_at | mtn }}</td>
+          <td class="td-meta">{{ h.changed_by }}</td>
+          <td class="td-meta">
             {% if h.contact_id %}
             <a href="{{ url_for('contact_detail', cid=h.contact_id) }}">{{ h.display_name or '—' }}</a>
             {% else %}{{ h.display_name or '—' }}{% endif %}
           </td>
-          <td><span class="chip" style="font-size:.72rem;">{{ h.change_type }}</span></td>
+          <td><span class="chip">{{ h.change_type }}</span></td>
           <td class="hist-field">{{ h.field_name or '—' }}</td>
           <td>
             {% if h.change_type == 'edit_notes' %}
-            <span style="color:var(--muted); font-size:.8rem; font-style:italic;">Notes updated</span>
+            <span class="td-meta">Notes updated</span>
             {% elif h.old_value or h.new_value %}
-            <span class="hist-val" style="color:var(--muted);">{{ (h.old_value or '')[:40] }}</span>
+            <span class="hist-val text-muted">{{ (h.old_value or '')[:40] }}</span>
             <span class="hist-arrow">→</span>
             <span class="hist-val">{{ (h.new_value or '')[:40] }}</span>
             {% else %}—{% endif %}
@@ -207,7 +173,7 @@
       </tbody>
     </table>
     {% else %}
-    <div style="padding:2rem; text-align:center; color:var(--muted); font-size:.875rem;">
+    <div style="padding:2rem; text-align:center;" class="td-meta">
       No changes recorded yet. Edits made through the app will appear here.
     </div>
     {% endif %}
@@ -215,9 +181,9 @@
 </div>
 
 <!-- ── Sync log ───────────────────────────────────────────────────────────── -->
-<div id="panel-synclog" class="admin-panel">
-  <div class="card" style="overflow:hidden;">
-    <div style="padding:1.25rem 1.25rem .5rem;">
+<div id="panel-synclog" class="section-panel">
+  <div class="card card-overflow">
+    <div class="card-body">
       <div class="section-title">Sync log</div>
     </div>
     {% if logs %}
@@ -235,27 +201,27 @@
       <tbody>
         {% for log in logs %}
         <tr>
-          <td style="font-size:.82rem; white-space:nowrap;">{{ log.started_at | mtn if log.started_at else '—' }}</td>
+          <td class="td-meta" style="white-space:nowrap;">{{ log.started_at | mtn if log.started_at else '—' }}</td>
           <td><span class="chip">{{ log.message or 'sync' }}</span></td>
-          <td style="color:var(--success)">{% if log.added %}+{{ log.added }}{% else %}—{% endif %}</td>
-          <td style="color:var(--accent)">{% if log.updated %}{{ log.updated }}{% else %}—{% endif %}</td>
-          <td style="color:{{ 'var(--danger)' if log.errors else 'var(--muted)' }}">{{ log.errors or 0 }}</td>
-          <td style="font-size:.82rem; color:var(--muted);">{{ log.finished_at | mtn if log.finished_at else '—' }}</td>
+          <td style="color:var(--success);">{% if log.added %}+{{ log.added }}{% else %}—{% endif %}</td>
+          <td style="color:var(--accent);">{% if log.updated %}{{ log.updated }}{% else %}—{% endif %}</td>
+          <td style="color:{{ 'var(--danger)' if log.errors else 'var(--muted)' }};">{{ log.errors or 0 }}</td>
+          <td class="td-meta">{{ log.finished_at | mtn if log.finished_at else '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     {% else %}
-    <div style="padding:2rem; text-align:center; color:var(--muted); font-size:.875rem;">No sync runs recorded yet.</div>
+    <div style="padding:2rem; text-align:center;" class="td-meta">No sync runs recorded yet.</div>
     {% endif %}
   </div>
 </div>
 
 <!-- ── Errors ─────────────────────────────────────────────────────────────── -->
-<div id="panel-errors" class="admin-panel">
-  <div class="card" style="overflow:hidden;">
-    <div style="padding:1.25rem 1.25rem .5rem; display:flex; align-items:center; justify-content:space-between;">
-      <div class="section-title" style="{% if errors %}color:var(--danger);border-color:#f5c6c3;{% endif %}">
+<div id="panel-errors" class="section-panel">
+  <div class="card card-overflow">
+    <div class="card-body" style="display:flex; align-items:center; justify-content:space-between;">
+      <div class="section-title" style="{% if errors %}color:var(--danger);border-color:#f5c6c3;{% endif %}margin-bottom:0;">
         {% if errors %}⚠ {{ errors|length }} unresolved error{{ 's' if errors|length != 1 else '' }}{% else %}Contact sync errors{% endif %}
       </div>
       <form method="POST" action="{{ url_for('retry_failed_writes') }}" style="margin:0;">
@@ -272,8 +238,8 @@
         <tr>
           <td><strong>{{ e.display_name or '—' }}</strong></td>
           <td><span class="chip" style="color:var(--danger);border-color:#f5c6c3;">{{ e.error_type }}</span></td>
-          <td style="font-size:.8rem;">{{ e.error_detail }}</td>
-          <td style="font-size:.78rem; color:var(--muted);">{{ e.last_seen | mtn }}</td>
+          <td class="td-meta">{{ e.error_detail }}</td>
+          <td class="td-meta">{{ e.last_seen | mtn }}</td>
           <td>
             <form method="POST" action="{{ url_for('resolve_error', eid=e.id) }}">
               <button type="submit" class="btn btn-secondary btn-sm">Resolve</button>
@@ -290,20 +256,20 @@
     {% endif %}
   </div>
 </div>
+
 <!-- ── Conflicts ──────────────────────────────────────────────────────────── -->
-<div id="panel-conflicts" class="admin-panel">
+<div id="panel-conflicts" class="section-panel">
   {% if conflicts_pending %}
   <div style="margin-bottom:2rem;">
     <div class="section-title" style="color:var(--warning); border-color:#f5d99a; margin-bottom:1rem;">
       {{ conflicts_pending|length }} pending conflict{{ 's' if conflicts_pending|length != 1 else '' }}
     </div>
     {% for c in conflicts_pending %}
-    <div class="card" style="margin-bottom:1.25rem; overflow:hidden;" id="conflict-{{ c.id }}">
-      <div style="padding:1.25rem; border-bottom:1px solid var(--border);
-                  display:flex; align-items:center; justify-content:space-between; background:#fffdf7;">
+    <div class="card card-overflow" style="margin-bottom:1.25rem;" id="conflict-{{ c.id }}">
+      <div class="card-body" style="border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:#fffdf7;">
         <div>
           <div style="font-weight:500; font-size:1rem;">{{ c.display_name }}</div>
-          <div style="font-size:.78rem; color:var(--muted); margin-top:.2rem;">
+          <div class="td-meta" style="margin-top:.2rem;">
             App edited by <strong>{{ c.app_edited_by }}</strong>
             at {{ c.app_edited_at | mtn }}
             &nbsp;·&nbsp;
@@ -313,29 +279,27 @@
         <span class="badge" style="background:#fef3e2; color:var(--warning);">Needs review</span>
       </div>
       <div style="display:grid; grid-template-columns:1fr 1fr;">
-        <div style="padding:1.25rem; border-right:1px solid var(--border);">
-          <div style="font-size:.72rem; font-weight:500; text-transform:uppercase;
-                      letter-spacing:.06em; color:var(--accent); margin-bottom:.75rem;">
+        <div class="card-body" style="border-right:1px solid var(--border);">
+          <div class="addr-label" style="color:var(--accent); margin-bottom:.75rem;">
             App version (edited by {{ c.app_edited_by }})
           </div>
-          <div class="notes-body" style="font-size:.85rem; min-height:80px;">
-            {% if c.app_html %}{{ c.app_html | safe }}{% else %}<em style="color:var(--muted);">No notes</em>{% endif %}
+          <div class="notes-body" style="min-height:80px;">
+            {% if c.app_html %}{{ c.app_html | safe }}{% else %}<em class="text-muted">No notes</em>{% endif %}
           </div>
           <div style="margin-top:1rem;">
             {% if role == 'admin' %}
             <button class="btn btn-primary btn-sm" onclick="resolveConflict({{ c.id }}, 'app', this)">✓ Use app version</button>
             {% else %}
-            <span style="font-size:.78rem; color:var(--muted);">Only admins can resolve conflicts.</span>
+            <span class="td-meta">Only admins can resolve conflicts.</span>
             {% endif %}
           </div>
         </div>
-        <div style="padding:1.25rem;">
-          <div style="font-size:.72rem; font-weight:500; text-transform:uppercase;
-                      letter-spacing:.06em; color:var(--warning); margin-bottom:.75rem;">
+        <div class="card-body">
+          <div class="addr-label" style="color:var(--warning); margin-bottom:.75rem;">
             Outlook version (changed in Exchange)
           </div>
-          <div class="notes-body" style="font-size:.85rem; min-height:80px;">
-            {% if c.outlook_html %}{{ c.outlook_html | safe }}{% else %}<em style="color:var(--muted);">No notes</em>{% endif %}
+          <div class="notes-body" style="min-height:80px;">
+            {% if c.outlook_html %}{{ c.outlook_html | safe }}{% else %}<em class="text-muted">No notes</em>{% endif %}
           </div>
           <div style="margin-top:1rem;">
             {% if role == 'admin' %}
@@ -348,7 +312,7 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="card" style="padding:3rem; text-align:center; color:var(--muted); margin-bottom:1.5rem;">
+  <div class="card card-body" style="text-align:center; color:var(--muted); margin-bottom:1.5rem; padding:3rem;">
     <div style="font-size:2rem; margin-bottom:.75rem;">✓</div>
     <p style="font-size:1rem; font-weight:500; margin-bottom:.35rem;">No pending conflicts</p>
     <p style="font-size:.875rem;">All edits are in sync between the app and Outlook.</p>
@@ -357,7 +321,7 @@
   {% if conflicts_resolved %}
   <div>
     <div class="section-title" style="margin-bottom:.75rem;">Recently resolved</div>
-    <div class="card" style="overflow:hidden;">
+    <div class="card card-overflow">
       <table>
         <thead><tr><th>Contact</th><th>Winner</th><th>Resolved by</th><th>When</th></tr></thead>
         <tbody>
@@ -365,8 +329,8 @@
           <tr>
             <td>{{ c.display_name }}</td>
             <td><span class="chip">{{ 'App' if c.winner == 'app' else 'Outlook' }}</span></td>
-            <td style="color:var(--muted);">{{ c.resolved_by }}</td>
-            <td style="color:var(--muted); font-size:.82rem;">{{ c.resolved_at | mtn if c.resolved_at else '—' }}</td>
+            <td class="td-meta">{{ c.resolved_by }}</td>
+            <td class="td-meta">{{ c.resolved_at | mtn if c.resolved_at else '—' }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -385,12 +349,12 @@ function showAdminTab(name) {
   PANELS.forEach(p => {
     document.getElementById('panel-' + p).classList.toggle('active', p === name);
   });
-  document.querySelectorAll('.admin-tab-btn').forEach(b =>
+  document.querySelectorAll('.tab-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.panel === name)
   );
   history.replaceState(null, '', '?tab=' + name);
 }
-document.querySelectorAll('.admin-tab-btn').forEach(b =>
+document.querySelectorAll('.tab-btn').forEach(b =>
   b.addEventListener('click', () => showAdminTab(b.dataset.panel))
 );
 showAdminTab('{{ tab }}');

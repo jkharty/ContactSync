@@ -3,88 +3,19 @@
 
 {% block extra_head %}
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
-<style>
-  .tab-bar {
-    display: flex; gap: .35rem; margin-bottom: 1.5rem;
-    border-bottom: 1px solid var(--border); padding-bottom: .75rem;
-  }
-  .tab-btn {
-    padding: .4rem .9rem; border-radius: 6px; font-size: .875rem; font-weight: 500;
-    cursor: pointer; border: 1px solid transparent; text-decoration: none;
-    color: var(--muted); background: none; font-family: inherit; transition: all .15s;
-  }
-  .tab-btn:hover { background: var(--accent-light); color: var(--accent); }
-  .tab-btn.active { background: var(--accent-light); color: var(--accent); border-color: #c8d6fa; }
-  .section-panel { display: none; }
-  .section-panel.active { display: block; }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  .addr-section {
-    border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;
-  }
-  .addr-section-title {
-    font-size: .75rem; font-weight: 500; text-transform: uppercase;
-    letter-spacing: .07em; color: var(--muted); margin-bottom: .75rem;
-  }
-
-  /* ── Category dropdown ─────────────────────────────────── */
-  .cat-dd-wrap { position: relative; }
-  .cat-dd-btn {
-    width: 100%; display: flex; justify-content: space-between; align-items: center;
-    padding: .48rem .75rem; border: 1px solid var(--border); border-radius: 6px;
-    background: var(--surface); cursor: pointer; font-size: .9rem;
-    font-family: inherit; color: var(--text); text-align: left; transition: border-color .15s;
-  }
-  .cat-dd-btn:hover { border-color: var(--accent); }
-  .cat-dd-btn:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .cat-dd-arrow { font-size: .7rem; color: var(--muted); flex-shrink: 0; margin-left: .5rem; }
-  .cat-dd-panel {
-    display: none; position: absolute; top: calc(100% + 3px); left: 0; right: 0; z-index: 400;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0,0,0,.1); max-height: 280px; overflow-y: auto;
-    padding: .35rem 0;
-  }
-  .cat-dd-panel.open { display: block; }
-  .cat-dd-item {
-    display: flex; align-items: center; gap: .55rem;
-    padding: .42rem .85rem; font-size: .875rem; cursor: pointer; user-select: none;
-  }
-  .cat-dd-item:hover { background: var(--accent-light); }
-  .cat-dd-item input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; }
-  .cat-dd-divider { height: 1px; background: var(--border); margin: .35rem 0; }
-  .cat-dd-add-row {
-    display: flex; gap: .4rem; padding: .4rem .75rem .5rem;
-  }
-  .cat-dd-add-row input[type=text] {
-    flex: 1; padding: .3rem .55rem; font-size: .825rem;
-    border: 1px solid var(--border); border-radius: 5px; font-family: inherit;
-  }
-  .cat-dd-add-row button {
-    padding: .3rem .65rem; font-size: .825rem; border-radius: 5px;
-    border: 1px solid var(--border); background: var(--surface); cursor: pointer;
-    font-family: inherit;
-  }
-  .cat-dd-add-row button:hover { background: var(--accent-light); border-color: var(--accent); }
-
-  /* ── Notes / Quill ─────────────────────────────────────── */
-  #quill-editor .ql-editor { min-height: 320px; font-size: .9375rem; }
-  .ql-toolbar.ql-snow { border-radius: 8px 8px 0 0; border-color: var(--border); }
-  .ql-container.ql-snow { border-radius: 0 0 8px 8px; border-color: var(--border); }
-</style>
 {% endblock %}
 
 {% block content %}
-<div style="max-width:700px;">
-  <div style="margin-bottom:1.25rem; display:flex; align-items:center; gap:1rem;">
+<div class="edit-form-wrap">
+  <div class="edit-form-header">
     {% if new_contact %}
     <a href="{{ url_for('contacts') }}" class="btn btn-secondary btn-sm">&#8592; Back</a>
     {% else %}
     <a href="{{ url_for('contact_detail', cid=c.id) }}" class="btn btn-secondary btn-sm">&#8592; Back</a>
     {% endif %}
     <div>
-      <h1 style="font-family:'DM Serif Display',serif; font-size:1.75rem; font-weight:400;">
-        {% if new_contact %}New contact{% else %}Edit contact{% endif %}
-      </h1>
-      {% if not new_contact %}<p style="color:var(--muted); font-size:.875rem; margin-top:.2rem;">{{ c.display_name }}</p>{% endif %}
+      <h1 class="page-title">{% if new_contact %}New contact{% else %}Edit contact{% endif %}</h1>
+      {% if not new_contact %}<p class="page-subtitle">{{ c.display_name }}</p>{% endif %}
     </div>
   </div>
 
@@ -101,9 +32,9 @@
     <input type="hidden" name="notes_html" id="notes-hidden" value="{{ c.notes_html or '' }}">
 
     <!-- ── Identity ── -->
-    <div id="tab-identity" class="section-panel card" style="padding:1.5rem; margin-bottom:1.25rem;">
+    <div id="tab-identity" class="section-panel card tab-panel-card">
       <div class="form-group">
-        <label>Display name <span style="font-size:.75rem; color:var(--muted); font-weight:400;">(shown in contact list — leave blank to auto-build from first + last name)</span></label>
+        <label>Display name <span class="label-hint">(shown in contact list — leave blank to auto-build from first + last name)</span></label>
         <input type="text" name="display_name" value="{{ c.display_name or '' }}">
       </div>
       <div class="form-row">
@@ -154,12 +85,9 @@
     </div>
 
     <!-- ── Contact Info ── -->
-    <div id="tab-contact" class="section-panel card" style="padding:1.5rem; margin-bottom:1.25rem;">
-      <div style="margin-bottom:1.25rem;">
-        <div style="font-size:.75rem; font-weight:500; text-transform:uppercase; letter-spacing:.07em;
-                    color:var(--muted); margin-bottom:.75rem; padding-bottom:.5rem; border-bottom:1px solid var(--border);">
-          Email addresses
-        </div>
+    <div id="tab-contact" class="section-panel card tab-panel-card">
+      <div class="form-section">
+        <div class="form-section-title">Email addresses</div>
         <div class="form-group">
           <label>Email 1</label>
           <input type="text" name="email1" value="{{ c.email1 or '' }}">
@@ -173,11 +101,8 @@
           <input type="text" name="email3" value="{{ c.email3 or '' }}">
         </div>
       </div>
-      <div>
-        <div style="font-size:.75rem; font-weight:500; text-transform:uppercase; letter-spacing:.07em;
-                    color:var(--muted); margin-bottom:.75rem; padding-bottom:.5rem; border-bottom:1px solid var(--border);">
-          Phone numbers
-        </div>
+      <div class="form-section">
+        <div class="form-section-title">Phone numbers</div>
         <div class="form-group">
           <label>Business phone</label>
           <input type="text" name="phone_business" value="{{ c.phone_business or '' }}">
@@ -194,7 +119,7 @@
     </div>
 
     <!-- ── Addresses ── -->
-    <div id="tab-address" class="section-panel card" style="padding:1.5rem; margin-bottom:1.25rem;">
+    <div id="tab-address" class="section-panel card tab-panel-card">
       <div class="addr-section">
         <div class="addr-section-title">Business</div>
         <div class="form-group">
@@ -243,20 +168,18 @@
     </div>
 
     <!-- ── Notes ── -->
-    <div id="tab-notes" class="section-panel" style="margin-bottom:1.25rem;">
-      <div class="card" style="padding:1.5rem;">
+    <div id="tab-notes" class="section-panel tab-panel-card">
+      <div class="card tab-panel-card">
         <div id="quill-editor">{{ c.notes_html | safe }}</div>
       </div>
     </div>
 
     <!-- Save / Cancel -->
-    <div style="background:var(--accent-light); border:1px solid #c8d6fa; border-radius:8px;
-                padding:.85rem 1rem; margin-bottom:1.25rem; font-size:.825rem; color:#1e47cc;
-                display:flex; gap:.6rem; align-items:flex-start;">
-      <span style="flex-shrink:0;">ℹ</span>
+    <div class="info-banner">
+      <span class="info-banner-icon">ℹ</span>
       <span>Changes save locally immediately and sync to Outlook within {{ config.SYNC_INTERVAL_SECONDS // 60 }} minutes.</span>
     </div>
-    <div style="display:flex; gap:.75rem;">
+    <div class="form-actions">
       <button type="submit" class="btn btn-primary">{% if new_contact %}Create contact{% else %}Save changes{% endif %}</button>
       {% if new_contact %}
       <a href="{{ url_for('contacts') }}" class="btn btn-secondary">Cancel</a>
