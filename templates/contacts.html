@@ -57,15 +57,12 @@
     {% set addr_city   = c.home_city   or c.address_city   or c.other_city   or '' %}
     {% set addr_state  = c.home_state  or c.address_state  or c.other_state  or '' %}
     {% set primary_phone = c.phone_mobile or c.phone_business or c.phone_home or '' %}
-    {% set _ch = (c.display_name or 'A')[0].upper() %}
-    {% set _av = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.find(_ch) % 8 %}
     <div class="contact-card" onclick="location.href='{{ url_for('contact_detail', cid=c.id) }}'">
       {% if role in ('viewedit','admin') %}
       <div class="contact-card-cb" onclick="event.stopPropagation()">
         <input type="checkbox" class="row-cb contact-cb" data-id="{{ c.id }}" title="Select">
       </div>
       {% endif %}
-      <span class="contact-avatar av-{{ _av }}" aria-hidden="true">{{ _ch }}</span>
       <div class="contact-card-info">
         <div class="contact-card-name-row">
           <div class="contact-card-name">{{ c.display_name or '(no name)' }}</div>
@@ -231,13 +228,6 @@
     // Category abbreviation mapping (single-sourced from config.CATEGORY_ABBREVS)
     const catMap = {{ config.CATEGORY_ABBREVS | tojson }};
 
-    function avatarHtml(name) {
-      const ch = (name || 'A')[0].toUpperCase();
-      const idx = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.indexOf(ch);
-      const av  = idx >= 0 ? idx % 8 : 7;
-      return `<span class="contact-avatar av-${av}" aria-hidden="true">${ch}</span>`;
-    }
-
     function renderCategoryBubbles(categories) {
       if (!categories) return '';
       const cats = categories.split('|').map(c => c.trim()).filter(c => c);
@@ -287,7 +277,6 @@
         return `
         <div class="contact-card" onclick="location.href='/contacts/${c.id}'">
           ${cb}
-          ${avatarHtml(c.display_name)}
           <div class="contact-card-info">
             <div class="contact-card-name-row">
               <div class="contact-card-name">${c.display_name || '(no name)'}</div>
