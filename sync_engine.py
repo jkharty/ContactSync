@@ -334,13 +334,8 @@ def contact_to_dict(c):
     if body_match:
         html_str = body_match.group(1).strip()
     # Strip <img> tags — Outlook embeds images as CID attachments that
-    # can't be resolved in a browser context.
+    # can't be resolved in a browser context. Safe to strip without side effects.
     html_str = re.sub(r"<img[^>]*>", "", html_str, flags=re.IGNORECASE)
-    # Strip <a> tags whose text is purely a filename (attachment links).
-    html_str = re.sub(
-        r'<a\b[^>]*>\s*[\w\-]+\.[a-zA-Z]{2,5}\s*</a>',
-        "", html_str, flags=re.IGNORECASE
-    )
     html_str = html_str.strip()
 
     cats = ""
