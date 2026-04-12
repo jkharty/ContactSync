@@ -793,7 +793,7 @@ def _process_pending_writes(db, account):
                 EmailAddress, PhoneNumber, PhysicalAddress = _EmailAddress, _PhoneNumber, _PhysicalAddress
                 data = _json.loads(row["field_data"])
                 target  = account.root / 'Top of Information Store' / 'Contacts'
-                new_c   = _Contact(folder=target)
+                new_c   = Contact(folder=target)
                 new_c.given_name    = data.get("first_name") or None
                 new_c.surname       = data.get("last_name") or None
                 new_c.company_name  = data.get("company") or None
