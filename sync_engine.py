@@ -707,7 +707,11 @@ def incremental_sync():
                     """, d)
                     added += 1
             except Exception as e:
-                log.error(f"Error: {e}")
+                # Log the full error with contact details so it appears in Errors tab
+                exc_id   = getattr(c, 'id', None) or 'unknown'
+                exc_name = getattr(c, 'display_name', None) or getattr(c, 'subject', None) or '(unknown)'
+                log.error(f"Error processing '{exc_name}': {e}")
+                _log_contact_error(db, str(exc_id), str(exc_name), "incremental_sync", str(e))
                 errors += 1
 
         write_errors = _process_pending_writes(db, account)
@@ -792,8 +796,19 @@ def _write_fields_to_exchange(c, field_data):
 def _process_pending_writes(db, account):
     """Process pending write operations. Returns error count."""
     from exchangelib import ItemId, HTMLBody
-    # Auto-retry: reset previously failed write-backs so they get another attempt
-    db.execute("UPDATE pending_writes SET status='pending' WHERE status='error'")
+    MAX_RETRIES = 3
+    # Auto-retry: reset previously failed write-backs (up to MAX_RETRIES attempts)
+    db.execute("UPDATE pending_writes SET status='pending' WHERE status='error' AND retries < ?",
+               (MAX_RETRIES,))
+    # Mark permanently failed writes
+    permanently_failed = db.execute(
+        "SELECT id, exchange_id FROM pending_writes WHERE status='error' AND retries >= ?",
+        (MAX_RETRIES,)
+    ).fetchall()
+    for pf in permanently_failed:
+        db.execute("UPDATE pending_writes SET status='failed' WHERE id=?", (pf["id"],))
+        log.warning(f"Write-back permanently failed after {MAX_RETRIES} retries: {pf['exchange_id'][:40]}")
+
     pending = db.execute(
         "SELECT * FROM pending_writes WHERE status='pending'"
     ).fetchall()
@@ -806,6 +821,7 @@ def _process_pending_writes(db, account):
             (row["exchange_id"],)
         ).fetchone()
         contact_name = contact["display_name"] if contact else row["exchange_id"]
+        log.info(f"  Writing back: '{contact_name}' type={row['field_type']} id={row['id']}")
         # Skip if there's an unresolved conflict — wait for admin decision
         conflict = db.execute(
             "SELECT id FROM conflicts WHERE exchange_id=? AND status='pending'",
@@ -901,13 +917,15 @@ def _process_pending_writes(db, account):
                 "UPDATE pending_writes SET status='done' WHERE id=?", (row["id"],)
             )
         except Exception as e:
-            log.error(f"[FAILED] Write-back failed for {contact_name}: {type(e).__name__}: {e}")
+            retries = (row["retries"] or 0) + 1
+            log.error(f"[FAILED] Write-back failed for '{contact_name}' (attempt {retries}/{MAX_RETRIES}): {type(e).__name__}: {e}")
             error_count += 1
             db.execute(
-                "UPDATE pending_writes SET status='error' WHERE id=?", (row["id"],)
+                "UPDATE pending_writes SET status='error', retries=? WHERE id=?",
+                (retries, row["id"])
             )
             _log_contact_error(db, row["exchange_id"], contact_name, "write_back",
-                             f"{type(e).__name__}: {str(e)[:200]}")
+                             f"Attempt {retries}/{MAX_RETRIES} — {type(e).__name__}: {str(e)[:200]}")
 
     return error_count
 

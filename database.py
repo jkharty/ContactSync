@@ -82,7 +82,8 @@ def init_db():
             field_data      TEXT,
             requested_by    TEXT,
             requested_at    TEXT,
-            status          TEXT DEFAULT 'pending'
+            status          TEXT DEFAULT 'pending',
+            retries         INTEGER DEFAULT 0
         );
 
         CREATE INDEX IF NOT EXISTS idx_contacts_display_name
@@ -184,6 +185,7 @@ def init_db():
         "ALTER TABLE sync_log ADD COLUMN sync_type TEXT",
         "ALTER TABLE users ADD COLUMN email TEXT",
         "ALTER TABLE users ADD COLUMN last_login TEXT",
+        "ALTER TABLE pending_writes ADD COLUMN retries INTEGER DEFAULT 0",
     ]
     for sql in migrations:
         try:
