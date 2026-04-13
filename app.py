@@ -718,6 +718,15 @@ def admin():
     errors  = db.execute(
         "SELECT * FROM sync_errors WHERE resolved=0 ORDER BY last_seen DESC"
     ).fetchall()
+    # Pending writes with contact names for diagnostics
+    pending_writes = db.execute("""
+        SELECT pw.id, pw.exchange_id, pw.field_type, pw.status, pw.retries,
+               pw.requested_by, pw.requested_at, c.display_name
+        FROM pending_writes pw
+        LEFT JOIN contacts c ON pw.exchange_id = c.exchange_id
+        WHERE pw.status IN ('pending', 'error', 'failed')
+        ORDER BY pw.id DESC LIMIT 50
+    """).fetchall()
     conflicts_pending  = db.execute(
         "SELECT * FROM conflicts WHERE status='pending' ORDER BY detected_at DESC"
     ).fetchall()
@@ -727,6 +736,7 @@ def admin():
     return render_template("admin.html",
         logs=logs, total=total, pending=pending,
         users=users, history=history, errors=errors,
+        pending_writes=pending_writes,
         conflicts_pending=conflicts_pending, conflicts_resolved=conflicts_resolved, tab=tab,
         role=session["role"], username=session["username"])
 
@@ -779,7 +789,7 @@ def resolve_error(eid):
 @role_required("admin")
 def retry_failed_writes():
     db = get_request_db()
-    db.execute("UPDATE pending_writes SET status='pending' WHERE status='error'")
+    db.execute("UPDATE pending_writes SET status='pending', retries=0 WHERE status IN ('error','failed')")
     db.commit()
     return redirect(url_for("admin", tab="errors"))
 
@@ -789,11 +799,34 @@ def retry_failed_writes():
 def retry_write_for_contact(exchange_id):
     db = get_request_db()
     db.execute(
-        "UPDATE pending_writes SET status='pending' WHERE exchange_id=? AND status='error'",
+        "UPDATE pending_writes SET status='pending', retries=0 WHERE exchange_id=? AND status IN ('error','failed')",
         (exchange_id,)
     )
     db.commit()
     return redirect(url_for("admin", tab="errors"))
+
+@app.route("/admin/pending-writes")
+@login_required
+@role_required("admin")
+def admin_pending_writes():
+    """Diagnostic view showing all pending writes and their status."""
+    db = get_request_db()
+    writes = db.execute("""
+        SELECT pw.*, c.display_name
+        FROM pending_writes pw
+        LEFT JOIN contacts c ON pw.exchange_id = c.exchange_id
+        ORDER BY pw.id DESC LIMIT 100
+    """).fetchall()
+    return jsonify([{
+        "id": w["id"],
+        "exchange_id": w["exchange_id"][:40] + "..." if len(w["exchange_id"]) > 40 else w["exchange_id"],
+        "display_name": w["display_name"] or "(unknown)",
+        "field_type": w["field_type"],
+        "status": w["status"],
+        "retries": w["retries"],
+        "requested_by": w["requested_by"],
+        "requested_at": w["requested_at"],
+    } for w in writes])
 
 # ── API for search typeahead ──────────────────────────────────────────────────
 @app.route("/api/search")

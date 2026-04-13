@@ -256,7 +256,40 @@
     </table>
     {% else %}
     <div style="padding:2rem; text-align:center; color:var(--success); font-size:.875rem;">
-      ✓ No unresolved contact errors.
+      No unresolved contact errors.
+    </div>
+    {% endif %}
+
+    <!-- Pending Writes Queue -->
+    <div class="section-title" style="margin-top:2rem;">Pending Write Queue</div>
+    {% if pending_writes %}
+    <table>
+      <thead>
+        <tr><th>Contact</th><th>Type</th><th>Status</th><th>Retries</th><th>Requested</th></tr>
+      </thead>
+      <tbody>
+        {% for w in pending_writes %}
+        <tr>
+          <td><strong>{{ w.display_name or w.exchange_id[:30] ~ '...' }}</strong></td>
+          <td>{{ w.field_type or 'notes' }}</td>
+          <td>
+            {% if w.status == 'pending' %}
+            <span class="chip" style="color:#0d6efd;border-color:#b6d4fe;">pending</span>
+            {% elif w.status == 'error' %}
+            <span class="chip" style="color:var(--danger);border-color:#f5c6c3;">error</span>
+            {% elif w.status == 'failed' %}
+            <span class="chip" style="color:#6c757d;border-color:#dee2e6;">failed</span>
+            {% endif %}
+          </td>
+          <td>{{ w.retries or 0 }} / 3</td>
+          <td class="td-meta">{{ w.requested_at | mtn if w.requested_at else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:1rem; text-align:center; color:var(--success); font-size:.875rem;">
+      No pending writes in queue.
     </div>
     {% endif %}
   </div>

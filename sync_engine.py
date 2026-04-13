@@ -5,6 +5,7 @@ detects conflicts, writes edits back, and maintains the local database.
 import datetime
 import logging
 import re
+import traceback
 import config
 from database import get_db
 from exchangelib import (
@@ -539,7 +540,12 @@ def full_sync():
                     """, d)
                     added += 1
             except Exception as e:
-                log.error(f"Error processing contact: {e}")
+                exc_id   = getattr(c, 'id', None) or 'unknown'
+                exc_name = getattr(c, 'display_name', None) or getattr(c, 'subject', None) or '(unknown)'
+                tb = traceback.format_exc()
+                log.error(f"Error processing '{exc_name}': {type(e).__name__}: {e}\n{tb}")
+                _log_contact_error(db, str(exc_id), str(exc_name), "full_sync",
+                                   f"{type(e).__name__}: {str(e)[:300]}")
                 errors += 1
 
         # Remove contacts that no longer exist in Exchange
@@ -562,7 +568,17 @@ def full_sync():
         db.commit()
         db.close()
     except Exception as e:
-        log.error(f"Full sync failed: {e}")
+        tb = traceback.format_exc()
+        log.error(f"Full sync failed: {type(e).__name__}: {e}\n{tb}")
+        try:
+            err_db = get_db()
+            _log_contact_error(err_db, "SYSTEM", "(sync engine)",
+                             "full_sync_fatal",
+                             f"{type(e).__name__}: {str(e)[:300]}")
+            err_db.commit()
+            err_db.close()
+        except Exception:
+            pass
         errors += 1
 
     finish = datetime.datetime.utcnow().isoformat()
@@ -638,6 +654,7 @@ def incremental_sync():
         account  = get_account()
         target   = account.root / 'Top of Information Store' / 'Contacts'
         contacts = target.filter(last_modified_time__gt=since_dt)
+        log.info(f"Fetching contacts modified since {since_str[:19]}")
 
         for c in contacts:
             try:
@@ -710,16 +727,31 @@ def incremental_sync():
                 # Log the full error with contact details so it appears in Errors tab
                 exc_id   = getattr(c, 'id', None) or 'unknown'
                 exc_name = getattr(c, 'display_name', None) or getattr(c, 'subject', None) or '(unknown)'
-                log.error(f"Error processing '{exc_name}': {e}")
-                _log_contact_error(db, str(exc_id), str(exc_name), "incremental_sync", str(e))
+                tb = traceback.format_exc()
+                log.error(f"Error processing '{exc_name}': {type(e).__name__}: {e}\n{tb}")
+                _log_contact_error(db, str(exc_id), str(exc_name), "incremental_sync",
+                                   f"{type(e).__name__}: {str(e)[:300]}")
                 errors += 1
 
+        log.info(f"Contact read phase done — added:{added} updated:{updated} read_errors:{errors}")
         write_errors = _process_pending_writes(db, account)
         errors += write_errors
+        log.info(f"Write-back phase done — write_errors:{write_errors}")
         db.commit()
         db.close()
     except Exception as e:
-        log.error(f"Incremental sync error: {e}")
+        tb = traceback.format_exc()
+        log.error(f"Incremental sync error: {type(e).__name__}: {e}\n{tb}")
+        # Log to sync_errors so it appears in the Errors tab
+        try:
+            err_db = get_db()
+            _log_contact_error(err_db, "SYSTEM", "(sync engine)",
+                             "incremental_sync_fatal",
+                             f"{type(e).__name__}: {str(e)[:300]}")
+            err_db.commit()
+            err_db.close()
+        except Exception:
+            pass
         errors += 1
 
     finish = datetime.datetime.utcnow().isoformat()
@@ -1069,9 +1101,9 @@ def _log_sync(start, finish, added, updated, deleted, errors, mode):
     try:
         db = get_db()
         db.execute("""
-            INSERT INTO sync_log (started_at, finished_at, added, updated, deleted, errors, message)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (start, finish, added, updated, deleted, errors, mode))
+            INSERT INTO sync_log (started_at, finished_at, added, updated, deleted, errors, message, sync_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (start, finish, added, updated, deleted, errors, mode, mode))
         db.commit()
         db.close()
     except Exception:
