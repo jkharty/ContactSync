@@ -294,11 +294,16 @@ def login():
             ).fetchone()
             if db_user:
                 role = db_user["role"]
+                db.execute(
+                    "UPDATE users SET last_login=? WHERE username=?",
+                    (now, username)
+                )
+                db.commit()
             else:
                 role = user_cfg["role"]
                 db.execute(
-                    "INSERT INTO users (username, role, created_at) VALUES (?,?,?)",
-                    (username, role, now)
+                    "INSERT INTO users (username, role, created_at, last_login) VALUES (?,?,?,?)",
+                    (username, role, now, now)
                 )
                 db.commit()
             session["username"] = username
