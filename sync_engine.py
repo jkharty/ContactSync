@@ -778,15 +778,24 @@ def _process_pending_writes(db, account):
         "SELECT * FROM pending_writes WHERE status='pending'"
     ).fetchall()
     error_count = 0
+    if pending:
+        log.info(f"Processing {len(pending)} pending write-back(s)")
     for row in pending:
+        contact = db.execute(
+            "SELECT display_name FROM contacts WHERE exchange_id=?",
+            (row["exchange_id"],)
+        ).fetchone()
+        contact_name = contact["display_name"] if contact else row["exchange_id"]
         # Skip if there's an unresolved conflict — wait for admin decision
         conflict = db.execute(
             "SELECT id FROM conflicts WHERE exchange_id=? AND status='pending'",
             (row["exchange_id"],)
         ).fetchone()
         if conflict:
-            log.info(f"Skipping write-back — conflict pending for {row['exchange_id'][:30]}")
+            log.info(f"[SKIPPED] Write-back waiting for conflict resolution: {contact_name}")
             continue
+
+        log.info(f"[PROCESSING] Write-back for {contact_name} (type: {row.get('field_type', 'unknown')})")
         try:
             field_type = row["field_type"] if row["field_type"] else "notes"
 
@@ -872,16 +881,13 @@ def _process_pending_writes(db, account):
                 "UPDATE pending_writes SET status='done' WHERE id=?", (row["id"],)
             )
         except Exception as e:
-            log.error(f"Write-back failed: {e}")
+            log.error(f"[FAILED] Write-back failed for {contact_name}: {type(e).__name__}: {e}")
             error_count += 1
             db.execute(
                 "UPDATE pending_writes SET status='error' WHERE id=?", (row["id"],)
             )
-            contact = db.execute(
-                "SELECT display_name FROM contacts WHERE exchange_id=?", (row["exchange_id"],)
-            ).fetchone()
-            display_name = contact["display_name"] if contact else (row["exchange_id"] or "unknown")
-            _log_contact_error(db, row["exchange_id"], display_name, "write_back", str(e))
+            _log_contact_error(db, row["exchange_id"], contact_name, "write_back",
+                             f"{type(e).__name__}: {str(e)[:200]}")
 
     return error_count
 
