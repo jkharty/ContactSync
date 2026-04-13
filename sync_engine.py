@@ -795,7 +795,7 @@ def _process_pending_writes(db, account):
             log.info(f"[SKIPPED] Write-back waiting for conflict resolution: {contact_name}")
             continue
 
-        log.info(f"[PROCESSING] Write-back for {contact_name} (type: {row.get('field_type', 'unknown')})")
+        log.info(f"[PROCESSING] Write-back for {contact_name} (type: {row['field_type'] or 'unknown'})")
         try:
             field_type = row["field_type"] if row["field_type"] else "notes"
 
