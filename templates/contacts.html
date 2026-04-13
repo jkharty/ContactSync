@@ -28,6 +28,15 @@
   </div>
 </div>
 
+<div class="sort-bar">
+  <span class="sort-label">Sort:</span>
+  {% for key, label in [('name','Name'),('company','Company'),('title','Title'),('email','Email')] %}
+  <button class="sort-btn {% if sort_key == key %}active{% endif %}" data-sort="{{ key }}">
+    {{ label }}{% if sort_key == key %}<span class="sort-arrow">{{ '↑' if sort_dir == 'asc' else '↓' }}</span>{% endif %}
+  </button>
+  {% endfor %}
+</div>
+
 <div class="list-toolbar">
   {% if role in ('viewedit','admin') %}
   <button id="select-mode-btn" class="btn btn-secondary btn-sm" onclick="toggleSelectMode()">Select</button>
@@ -318,6 +327,7 @@
 
     clearWrap.style.display = (q || cat) ? 'inline-flex' : 'none';
     clearSelection();
+    if (typeof updateSortButtons === 'function') updateSortButtons();
   }
 
   function doSearch(page) {
@@ -426,6 +436,35 @@
       clearSelection();
     }
   };
+
+  // ── Sort buttons ─────────────────────────────────────────────────────────────
+  function updateSortButtons() {
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+      const key = btn.dataset.sort;
+      const isActive = key === currentSort.key;
+      btn.classList.toggle('active', isActive);
+      let arrow = btn.querySelector('.sort-arrow');
+      if (isActive) {
+        if (!arrow) { arrow = document.createElement('span'); arrow.className = 'sort-arrow'; btn.appendChild(arrow); }
+        arrow.textContent = currentSort.dir === 'asc' ? ' ↑' : ' ↓';
+      } else if (arrow) {
+        arrow.remove();
+      }
+    });
+  }
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const key = this.dataset.sort;
+      if (currentSort.key === key) {
+        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        currentSort.key = key;
+        currentSort.dir = 'asc';
+      }
+      updateSortButtons();
+      doSearch(1);
+    });
+  });
 
   // ── Text number picker ───────────────────────────────────────────────────────
   window.toggleTextPicker = function(btn) {

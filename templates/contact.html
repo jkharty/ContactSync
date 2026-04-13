@@ -58,6 +58,14 @@
   {% endif %}
 </div>
 
+{% if write_status == 'pending' %}
+<div class="write-status write-status-pending">⏳ Pending sync to Outlook…</div>
+{% elif write_status == 'done' %}
+<div class="write-status write-status-done">✓ Synced to Outlook</div>
+{% elif write_status == 'error' %}
+<div class="write-status write-status-error">⚠ Write-back to Outlook failed — will retry on next sync.</div>
+{% endif %}
+
 {# ── Collect phones and emails once for reuse ── #}
 {% set phones = [] %}
 {% if c.phone_business %}{% set _ = phones.append(('Business', c.phone_business)) %}{% endif %}

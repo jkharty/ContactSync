@@ -368,8 +368,14 @@ def contact_detail(cid):
     row = db.execute("SELECT * FROM contacts WHERE id=?", (cid,)).fetchone()
     if not row:
         return render_template("error.html", message="Contact not found."), 404
+    write = db.execute(
+        "SELECT status, requested_at FROM pending_writes "
+        "WHERE exchange_id=? ORDER BY requested_at DESC LIMIT 1",
+        (row["exchange_id"],)
+    ).fetchone()
     return render_template("contact.html", c=row,
-        role=session["role"], username=session["username"])
+        role=session["role"], username=session["username"],
+        write_status=write["status"] if write else None)
 
 @app.route("/contacts/<int:cid>/edit", methods=["GET", "POST"])
 @login_required
@@ -769,6 +775,18 @@ def resolve_error(eid):
 def retry_failed_writes():
     db = get_request_db()
     db.execute("UPDATE pending_writes SET status='pending' WHERE status='error'")
+    db.commit()
+    return redirect(url_for("admin", tab="errors"))
+
+@app.route("/admin/writes/retry/<exchange_id>", methods=["POST"])
+@login_required
+@role_required("admin")
+def retry_write_for_contact(exchange_id):
+    db = get_request_db()
+    db.execute(
+        "UPDATE pending_writes SET status='pending' WHERE exchange_id=? AND status='error'",
+        (exchange_id,)
+    )
     db.commit()
     return redirect(url_for("admin", tab="errors"))
 

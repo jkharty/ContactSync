@@ -452,12 +452,13 @@ def full_sync():
     log.info("Starting full sync ...")
     _set_sync_status("running", "Full sync in progress…")
     start = datetime.datetime.utcnow().isoformat()
-    added = updated = errors = 0
+    added = updated = deleted = errors = 0
     try:
         account  = get_account()
         target   = account.root / 'Top of Information Store' / 'Contacts'
         contacts = target.all()
         db = get_db()
+        seen_exchange_ids = set()
         for c in contacts:
             try:
                 if not isinstance(c, Contact):
@@ -470,6 +471,7 @@ def full_sync():
                     errors += 1
                     continue
                 d = contact_to_dict(c)
+                seen_exchange_ids.add(d["exchange_id"])
                 existing = db.execute(
                     "SELECT id, change_key FROM contacts WHERE exchange_id=?",
                     (d["exchange_id"],)
@@ -539,6 +541,22 @@ def full_sync():
             except Exception as e:
                 log.error(f"Error processing contact: {e}")
                 errors += 1
+
+        # Remove contacts that no longer exist in Exchange
+        # (exclude LOCAL-* rows — contacts created locally but not yet pushed)
+        if seen_exchange_ids:
+            stale = db.execute(
+                "SELECT id, exchange_id, display_name FROM contacts "
+                "WHERE exchange_id NOT LIKE 'LOCAL-%'"
+            ).fetchall()
+            for stale_row in stale:
+                if stale_row["exchange_id"] not in seen_exchange_ids:
+                    log.info(f"Removing deleted contact: {stale_row['display_name']}")
+                    db.execute("DELETE FROM contacts WHERE id=?", (stale_row["id"],))
+                    db.execute("DELETE FROM pending_writes WHERE exchange_id=?",
+                               (stale_row["exchange_id"],))
+                    deleted += 1
+
         write_errors = _process_pending_writes(db, account)
         errors += write_errors
         db.commit()
@@ -548,10 +566,10 @@ def full_sync():
         errors += 1
 
     finish = datetime.datetime.utcnow().isoformat()
-    msg = f"Full sync complete — added:{added} updated:{updated} errors:{errors}"
+    msg = f"Full sync complete — added:{added} updated:{updated} deleted:{deleted} errors:{errors}"
     _set_sync_status("idle", msg)
-    _log_sync(start, finish, added, updated, 0, errors, "full")
-    log.info(f"Full sync done — added:{added} updated:{updated} errors:{errors}")
+    _log_sync(start, finish, added, updated, deleted, errors, "full")
+    log.info(f"Full sync done — added:{added} updated:{updated} deleted:{deleted} errors:{errors}")
 
 def force_refresh():
     log.info("Force refresh starting ...")
@@ -774,6 +792,8 @@ def _write_fields_to_exchange(c, field_data):
 def _process_pending_writes(db, account):
     """Process pending write operations. Returns error count."""
     from exchangelib import ItemId, HTMLBody
+    # Auto-retry: reset previously failed write-backs so they get another attempt
+    db.execute("UPDATE pending_writes SET status='pending' WHERE status='error'")
     pending = db.execute(
         "SELECT * FROM pending_writes WHERE status='pending'"
     ).fetchall()

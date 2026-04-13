@@ -239,9 +239,16 @@
           <td class="td-meta">{{ e.error_detail }}</td>
           <td class="td-meta">{{ e.last_seen | mtn }}</td>
           <td>
-            <form method="POST" action="{{ url_for('resolve_error', eid=e.id) }}">
-              <button type="submit" class="btn btn-secondary btn-sm">Resolve</button>
-            </form>
+            <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+              <form method="POST" action="{{ url_for('resolve_error', eid=e.id) }}" style="margin:0;">
+                <button type="submit" class="btn btn-secondary btn-sm">Resolve</button>
+              </form>
+              {% if e.exchange_id and e.error_type == 'write_back' %}
+              <form method="POST" action="{{ url_for('retry_write_for_contact', exchange_id=e.exchange_id) }}" style="margin:0;">
+                <button type="submit" class="btn btn-secondary btn-sm">Retry write</button>
+              </form>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% endfor %}
