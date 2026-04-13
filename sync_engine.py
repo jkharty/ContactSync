@@ -798,11 +798,15 @@ def _process_pending_writes(db, account):
     from exchangelib import ItemId, HTMLBody
     MAX_RETRIES = 3
     # Auto-retry: reset previously failed write-backs (up to MAX_RETRIES attempts)
-    db.execute("UPDATE pending_writes SET status='pending' WHERE status='error' AND retries < ?",
+    # COALESCE handles NULL retries (from rows created before the column was added)
+    db.execute("UPDATE pending_writes SET status='pending' WHERE status='error' AND COALESCE(retries, 0) < ?",
+               (MAX_RETRIES,))
+    # Also reset any 'failed' rows that somehow have low retry counts (safety net)
+    db.execute("UPDATE pending_writes SET status='pending' WHERE status='failed' AND COALESCE(retries, 0) < ?",
                (MAX_RETRIES,))
     # Mark permanently failed writes
     permanently_failed = db.execute(
-        "SELECT id, exchange_id FROM pending_writes WHERE status='error' AND retries >= ?",
+        "SELECT id, exchange_id FROM pending_writes WHERE status='error' AND COALESCE(retries, 0) >= ?",
         (MAX_RETRIES,)
     ).fetchall()
     for pf in permanently_failed:

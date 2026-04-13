@@ -186,6 +186,7 @@ def init_db():
         "ALTER TABLE users ADD COLUMN email TEXT",
         "ALTER TABLE users ADD COLUMN last_login TEXT",
         "ALTER TABLE pending_writes ADD COLUMN retries INTEGER DEFAULT 0",
+        "UPDATE pending_writes SET retries = 0 WHERE retries IS NULL",
     ]
     for sql in migrations:
         try:
