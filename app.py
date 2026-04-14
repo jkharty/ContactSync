@@ -733,11 +733,17 @@ def admin():
     conflicts_resolved = db.execute(
         "SELECT * FROM conflicts WHERE status='resolved' ORDER BY resolved_at DESC LIMIT 20"
     ).fetchall()
+    search_history = db.execute("""
+        SELECT username, query, category, result_count, searched_at
+        FROM search_log
+        ORDER BY searched_at DESC LIMIT 500
+    """).fetchall() if session["role"] == "admin" else []
     return render_template("admin.html",
         logs=logs, total=total, pending=pending,
         users=users, history=history, errors=errors,
         pending_writes=pending_writes,
-        conflicts_pending=conflicts_pending, conflicts_resolved=conflicts_resolved, tab=tab,
+        conflicts_pending=conflicts_pending, conflicts_resolved=conflicts_resolved,
+        search_history=search_history, tab=tab,
         role=session["role"], username=session["username"])
 
 @app.route("/admin/sync", methods=["POST"])
@@ -888,6 +894,16 @@ def api_contacts():
     total = db.execute(
         f"SELECT COUNT(*) FROM contacts {where_sql}", params
     ).fetchone()[0]
+
+    # Log search if user typed a query or selected a category (skip blank page loads)
+    if (query or category) and page == 1:
+        db.execute(
+            "INSERT INTO search_log (username, query, category, result_count, searched_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (session["username"], query or None, category or None,
+             total, datetime.datetime.utcnow().isoformat())
+        )
+        db.commit()
 
     return jsonify({
         "contacts":            [dict(r) for r in rows],

@@ -21,6 +21,9 @@
   <button class="tab-btn" data-panel="conflicts">
     Conflicts{% if conflicts_pending %} <span class="tab-badge tab-badge-warning">{{ conflicts_pending|length }}</span>{% endif %}
   </button>
+  {% if role == 'admin' %}
+  <button class="tab-btn" data-panel="searches">Search history</button>
+  {% endif %}
 </div>
 
 <!-- ── Overview ─────────────────────────────────────────────────────────── -->
@@ -377,6 +380,62 @@
   </div>
   {% endif %}
 </div>
+
+{% if role == 'admin' %}
+<!-- ── Search history ─────────────────────────────────────────────────────── -->
+<div id="panel-searches" class="section-panel">
+  <div class="card card-overflow">
+    <div class="card-body" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem;">
+      <div class="section-title" style="margin-bottom:0;">Last 500 searches — all users</div>
+      {% if search_history %}
+      <span class="td-meta">{{ search_history|length }} entr{{ 'y' if search_history|length == 1 else 'ies' }}</span>
+      {% endif %}
+    </div>
+    {% if search_history %}
+    <table>
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Who</th>
+          <th>Query</th>
+          <th>Category</th>
+          <th style="text-align:right;">Results</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in search_history %}
+        <tr>
+          <td class="td-meta">{{ s.searched_at | mtn }}</td>
+          <td><strong>{{ s.username }}</strong></td>
+          <td>
+            {% if s.query %}
+            <a href="{{ url_for('contacts') }}?q={{ s.query | urlencode }}" class="link-accent">{{ s.query }}</a>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if s.category %}
+            <span class="chip">{{ s.category }}</span>
+            {% else %}
+            <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="td-meta" style="text-align:right;">{{ s.result_count if s.result_count is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">🔍</div>
+      <div class="empty-state-title">No searches recorded yet</div>
+      <div class="empty-state-sub">Searches made from the Contacts page will appear here.</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

@@ -152,6 +152,17 @@ def init_db():
             created_at TEXT,
             updated_at TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS search_log (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            username     TEXT NOT NULL,
+            query        TEXT,
+            category     TEXT,
+            result_count INTEGER,
+            searched_at  TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_search_log_user ON search_log(username);
+        CREATE INDEX IF NOT EXISTS idx_search_log_time ON search_log(searched_at DESC);
     """)
     conn.commit()
 
@@ -187,6 +198,12 @@ def init_db():
         "ALTER TABLE users ADD COLUMN last_login TEXT",
         "ALTER TABLE pending_writes ADD COLUMN retries INTEGER DEFAULT 0",
         "UPDATE pending_writes SET retries = 0 WHERE retries IS NULL",
+        """CREATE TABLE IF NOT EXISTS search_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL, query TEXT, category TEXT,
+            result_count INTEGER, searched_at TEXT NOT NULL)""",
+        "CREATE INDEX IF NOT EXISTS idx_search_log_user ON search_log(username)",
+        "CREATE INDEX IF NOT EXISTS idx_search_log_time ON search_log(searched_at DESC)",
     ]
     for sql in migrations:
         try:
