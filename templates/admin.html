@@ -441,7 +441,7 @@
 {% block extra_js %}
 <script>
 // ── Tab switching ──────────────────────────────────────────────────────────
-const PANELS = ['overview','users','history','synclog','errors','conflicts'];
+const PANELS = ['overview','users','history','synclog','errors','conflicts','searches'];
 function showAdminTab(name) {
   PANELS.forEach(p => {
     document.getElementById('panel-' + p).classList.toggle('active', p === name);
