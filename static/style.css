@@ -1011,6 +1011,62 @@ body.login-body {
 }
 .login-footer { text-align: center; color: var(--muted); font-size: .75rem; margin-top: 1.5rem; }
 
+/* ── No-category notice (contact detail) ─────────────────── */
+.no-cat-notice {
+  padding: .55rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: .85rem;
+  margin-bottom: .75rem;
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning-border);
+}
+
+/* ── Inline category editor (contact header) ─────────────── */
+.inline-cat-editor {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin-top: .65rem;
+}
+.inline-cat-editor .cat-dd-wrap { flex: 1; min-width: 180px; max-width: 360px; }
+.inline-cat-editor .cat-dd-btn  { font-size: .875rem; }
+.cat-inline-saved { font-size: .8rem; color: var(--success); font-weight: 500; }
+
+/* ── Activity panel (contact detail) ─────────────────────── */
+.activity-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+.activity-col-title {
+  font-size: .72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  margin-bottom: .6rem;
+  padding-bottom: .4rem;
+  border-bottom: 1px solid var(--border);
+}
+.activity-item {
+  display: flex;
+  flex-direction: column;
+  padding: .3rem 0;
+  border-bottom: 1px solid var(--border);
+  gap: .08rem;
+}
+.activity-item:last-child { border-bottom: none; }
+.activity-user   { font-weight: 600; font-size: .825rem; }
+.activity-action { font-size: .8rem; color: var(--text); }
+.activity-time   { font-size: .75rem; color: var(--muted); }
+
+/* ── Form validation ──────────────────────────────────────── */
+.label-req  { color: var(--danger); margin-left: .2rem; }
+.form-error { font-size: .8rem; color: var(--danger); margin-top: .35rem; }
+.cat-dd-btn.input-error { border-color: var(--danger) !important; }
+
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 680px) {
   main { padding: 1rem .85rem; }
@@ -1024,6 +1080,8 @@ body.login-body {
   .form-row       { grid-template-columns: 1fr; }
   .stat-grid      { grid-template-columns: 1fr 1fr; }
   th, td          { font-size: .78rem; padding: .5rem .65rem; }
+  .activity-grid  { grid-template-columns: 1fr; gap: 1.25rem; }
+  .inline-cat-editor .cat-dd-wrap { max-width: 100%; }
 }
 @media (max-width: 480px) {
   .nav-brand    { font-size: 1rem; }

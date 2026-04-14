@@ -49,6 +49,37 @@
     {% if c.company %}{{ c.company }}{% endif %}
   </p>
   {% endif %}
+
+  {% if role in ('viewedit', 'admin') %}
+  <!-- Inline category editor -->
+  <div class="inline-cat-editor">
+    <div class="cat-dd-wrap" id="h-cat-dd">
+      <button type="button" class="cat-dd-btn" id="h-cat-btn" onclick="toggleHCatDd()">
+        <span id="h-cat-label">{% if c.categories %}{{ c.categories.replace('|', ', ') }}{% else %}<em style="opacity:.55;font-style:normal;">No category — click to assign</em>{% endif %}</span>
+        <span class="cat-dd-arrow">▾</span>
+      </button>
+      <div class="cat-dd-panel" id="h-cat-panel">
+        {% set current_set = c.categories.split('|') | map('trim') | list if c.categories else [] %}
+        {% for cat in all_categories %}{% if cat.strip() %}
+        <label class="cat-dd-item">
+          <input type="checkbox" value="{{ cat.strip() }}"
+            {% if cat.strip() in current_set %}checked{% endif %}
+            onchange="onHCatChange()">
+          <span>{{ cat.strip() }}</span>
+        </label>
+        {% endif %}{% endfor %}
+        <div class="cat-dd-divider"></div>
+        <div class="cat-dd-add-row">
+          <input type="text" id="h-cat-new" placeholder="Add new category…" autocomplete="off">
+          <button type="button" onclick="addHCat()">+ Add</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" id="h-cat-save"
+            style="display:none" onclick="saveHCat()">Save</button>
+    <span class="cat-inline-saved" id="h-cat-saved" style="display:none">✓ Saved</span>
+  </div>
+  {% else %}
   {% if c.categories %}
   <div class="contact-cat-chips">
     {% for cat in c.categories.split('|') %}{% if cat.strip() %}
@@ -56,7 +87,14 @@
     {% endif %}{% endfor %}
   </div>
   {% endif %}
+  {% endif %}
 </div>
+
+{% if not c.categories or not c.categories.strip() %}
+<div class="no-cat-notice">
+  ⚠ This contact has no category assigned.{% if role in ('viewedit','admin') %} Use the selector above to add one.{% endif %}
+</div>
+{% endif %}
 
 {% if write_status == 'pending' %}
 <div class="write-status write-status-pending">⏳ Pending sync to Outlook…</div>
@@ -239,6 +277,54 @@
     </div>
   </div>
 
+  {# ── Activity ── #}
+  <div class="acc-card" id="acc-activity">
+    <div class="acc-header" onclick="toggleAcc('acc-activity')">
+      <span class="acc-title">Activity</span>
+      <span class="acc-chevron">&#9660;</span>
+    </div>
+    <div class="acc-body">
+      <div class="activity-grid">
+
+        <div class="activity-col">
+          <div class="activity-col-title">Views</div>
+          {% if recent_views %}
+          {% for v in recent_views %}
+          <div class="activity-item">
+            <span class="activity-user">{{ v.username }}</span>
+            <span class="activity-time">{{ v.viewed_at | mtn }}</span>
+          </div>
+          {% endfor %}
+          {% else %}
+          <p class="empty-state-inline">No views recorded yet.</p>
+          {% endif %}
+        </div>
+
+        <div class="activity-col">
+          <div class="activity-col-title">Changes</div>
+          {% if recent_edits %}
+          {% for e in recent_edits %}
+          <div class="activity-item">
+            <span class="activity-user">{{ e.changed_by }}</span>
+            <span class="activity-action">
+              {% if e.change_type == 'create' %}Created contact
+              {% elif e.change_type == 'edit_notes' %}Edited notes
+              {% elif e.change_type == 'edit_fields' %}Changed {{ e.field_name or 'fields' }}
+              {% elif e.change_type == 'delete' %}Deleted
+              {% else %}{{ e.change_type }}{% endif %}
+            </span>
+            <span class="activity-time">{{ e.changed_at | mtn }}</span>
+          </div>
+          {% endfor %}
+          {% else %}
+          <p class="empty-state-inline">No changes recorded yet.</p>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <div class="last-synced">
@@ -252,6 +338,92 @@
 function toggleAcc(id) {
   document.getElementById(id).classList.toggle('open');
 }
+
+{% if role in ('viewedit', 'admin') %}
+// ── Inline category editor ─────────────────────────────────────────────────
+const _CID = {{ c.id }};
+let hCatOriginal = [...document.querySelectorAll('#h-cat-panel input[type=checkbox]:checked')]
+  .map(cb => cb.value).sort().join('|');
+
+function toggleHCatDd() {
+  document.getElementById('h-cat-panel').classList.toggle('open');
+}
+
+function onHCatChange() {
+  const checked = [...document.querySelectorAll('#h-cat-panel input[type=checkbox]:checked')]
+    .map(cb => cb.value);
+  const current = checked.slice().sort().join('|');
+  document.getElementById('h-cat-save').style.display = (current !== hCatOriginal) ? '' : 'none';
+  const lbl = document.getElementById('h-cat-label');
+  if (checked.length) {
+    lbl.textContent = checked.join(', ');
+  } else {
+    lbl.innerHTML = '<em style="opacity:.55;font-style:normal;">No category — click to assign</em>';
+  }
+}
+
+function addHCat() {
+  const input = document.getElementById('h-cat-new');
+  const val   = input.value.trim();
+  if (!val) return;
+  const existing = document.querySelector(`#h-cat-panel input[type=checkbox][value="${CSS.escape(val)}"]`);
+  if (existing) { existing.checked = true; input.value = ''; onHCatChange(); return; }
+  const label = document.createElement('label');
+  label.className = 'cat-dd-item';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox'; cb.value = val; cb.checked = true;
+  cb.addEventListener('change', onHCatChange);
+  label.appendChild(cb);
+  const span = document.createElement('span'); span.textContent = val; label.appendChild(span);
+  const divider = document.querySelector('#h-cat-panel .cat-dd-divider');
+  divider.parentNode.insertBefore(label, divider);
+  input.value = '';
+  onHCatChange();
+}
+
+document.getElementById('h-cat-new').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); addHCat(); }
+});
+
+function saveHCat() {
+  const saveBtn = document.getElementById('h-cat-save');
+  const cats = [...document.querySelectorAll('#h-cat-panel input[type=checkbox]:checked')]
+    .map(cb => cb.value);
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+  fetch('/api/contacts/' + _CID + '/category', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({categories: cats})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      hCatOriginal = cats.slice().sort().join('|');
+      saveBtn.style.display = 'none';
+      saveBtn.textContent = 'Save';
+      saveBtn.disabled = false;
+      document.getElementById('h-cat-panel').classList.remove('open');
+      const savedEl = document.getElementById('h-cat-saved');
+      savedEl.style.display = '';
+      setTimeout(() => { savedEl.style.display = 'none'; }, 2500);
+      // Hide the no-category notice if one was just assigned
+      if (cats.length) {
+        const notice = document.querySelector('.no-cat-notice');
+        if (notice) notice.style.display = 'none';
+      }
+    }
+  })
+  .catch(() => { saveBtn.disabled = false; saveBtn.textContent = 'Save'; });
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#h-cat-dd')) {
+    const panel = document.getElementById('h-cat-panel');
+    if (panel) panel.classList.remove('open');
+  }
+});
+{% endif %}
 
 function togglePicker(btn) {
   const menu = btn.nextElementSibling;

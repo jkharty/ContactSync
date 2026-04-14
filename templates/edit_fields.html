@@ -58,7 +58,7 @@
 
       <!-- ── Category dropdown ── -->
       <div class="form-group">
-        <label>Categories</label>
+        <label>Categories <span class="label-req">*</span></label>
         <div class="cat-dd-wrap" id="cat-dd-wrap">
           <button type="button" class="cat-dd-btn" id="cat-dd-btn" onclick="toggleCatDd()">
             <span id="cat-dd-label">{% if c.categories %}{{ c.categories.replace('|', ', ') }}{% else %}Select categories…{% endif %}</span>
@@ -80,6 +80,9 @@
               <button type="button" onclick="addCatToDd()">+ Add</button>
             </div>
           </div>
+        </div>
+        <div class="form-error" id="cat-required-error" style="display:none">
+          Please select at least one category before saving.
         </div>
       </div>
     </div>
@@ -224,7 +227,21 @@ function initQuill() {
   });
 }
 
-document.getElementById('edit-form').addEventListener('submit', function() {
+document.getElementById('edit-form').addEventListener('submit', function(e) {
+  // Category is required on identity/contact/address tabs (not notes-only saves)
+  const active = document.getElementById('active_section').value;
+  if (active !== 'notes') {
+    const cats = document.querySelectorAll('#cat-dd-panel input[type=checkbox]:checked');
+    if (cats.length === 0) {
+      e.preventDefault();
+      showTab('identity');
+      const errEl = document.getElementById('cat-required-error');
+      if (errEl) errEl.style.display = '';
+      const btn = document.getElementById('cat-dd-btn');
+      if (btn) btn.classList.add('input-error');
+      return;
+    }
+  }
   if (quill) document.getElementById('notes-hidden').value = quill.getSemanticHTML();
 });
 
@@ -239,6 +256,12 @@ function updateCatLabel() {
     .map(cb => cb.value);
   document.getElementById('cat-dd-label').textContent =
     checked.length ? checked.join(', ') : 'Select categories…';
+  if (checked.length) {
+    const errEl = document.getElementById('cat-required-error');
+    if (errEl) errEl.style.display = 'none';
+    const btn = document.getElementById('cat-dd-btn');
+    if (btn) btn.classList.remove('input-error');
+  }
 }
 
 function addCatToDd() {

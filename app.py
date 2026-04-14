@@ -386,9 +386,21 @@ def contact_detail(cid):
          datetime.datetime.utcnow().isoformat())
     )
     db.commit()
+    # Activity data for activity panel
+    recent_views = db.execute("""
+        SELECT username, viewed_at FROM contact_views
+        WHERE contact_id=? ORDER BY viewed_at DESC LIMIT 25
+    """, (cid,)).fetchall()
+    recent_edits = db.execute("""
+        SELECT changed_by, change_type, field_name, old_value, new_value, changed_at
+        FROM audit_log WHERE contact_id=? ORDER BY changed_at DESC LIMIT 25
+    """, (cid,)).fetchall()
+    all_categories = _all_categories(db, extra_cats_str=row["categories"])
     return render_template("contact.html", c=row,
         role=session["role"], username=session["username"],
-        write_status=write["status"] if write else None)
+        write_status=write["status"] if write else None,
+        recent_views=recent_views, recent_edits=recent_edits,
+        all_categories=all_categories)
 
 @app.route("/contacts/<int:cid>/edit", methods=["GET", "POST"])
 @login_required
@@ -546,6 +558,42 @@ def edit_fields(cid):
     return render_template("edit_fields.html", c=row, section=section,
         role=session["role"], username=session["username"],
         all_categories=all_categories)
+
+# ── Inline category save (contact detail page) ───────────────────────────────
+@app.route("/api/contacts/<int:cid>/category", methods=["POST"])
+@login_required
+@role_required("viewedit", "admin")
+def api_set_category(cid):
+    db  = get_request_db()
+    row = db.execute("SELECT * FROM contacts WHERE id=?", (cid,)).fetchone()
+    if not row:
+        return jsonify({"error": "Not found"}), 404
+    data    = request.get_json(force=True)
+    cats    = [v.strip() for v in data.get("categories", []) if v.strip()]
+    cat_str = "|".join(cats)
+    now     = datetime.datetime.utcnow().isoformat()
+    old_cats = row["categories"] or ""
+    if old_cats != cat_str:
+        db.execute("UPDATE contacts SET categories=?, synced_at=? WHERE id=?",
+                   (cat_str, now, cid))
+        _audit(db, cid, row["exchange_id"], row["display_name"],
+               session["username"], "edit_fields", "Categories", old_cats, cat_str)
+        # Build full field_data so sync_engine can write back to Exchange
+        field_data = {k: row[k] or "" for k in [
+            "first_name", "last_name", "company", "job_title",
+            "email1", "email2", "email3",
+            "phone_business", "phone_mobile", "phone_home",
+            "address_street", "address_city", "address_state", "address_zip", "address_country",
+            "home_street", "home_city", "home_state", "home_zip", "home_country",
+            "other_street", "other_city", "other_state", "other_zip", "other_country",
+        ]}
+        field_data["categories"] = cats
+        db.execute("""
+            INSERT INTO pending_writes (exchange_id, field_type, field_data, requested_by, requested_at, status)
+            VALUES (?, 'fields', ?, ?, ?, 'pending')
+        """, (row["exchange_id"], _json.dumps(field_data), session["username"], now))
+        db.commit()
+    return jsonify({"ok": True, "categories": cat_str})
 
 # ── Create new contact ───────────────────────────────────────────────────────
 @app.route("/contacts/new", methods=["GET", "POST"])
