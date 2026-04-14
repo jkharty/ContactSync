@@ -40,7 +40,10 @@ class RtfBody(ExtendedProperty):
 Contact.register("rtf_body", RtfBody)
 
 # ── Token cache ───────────────────────────────────────────────────────────────
-_cached_account = None
+# OAuth2 client-credentials tokens expire in 3600s. Refresh every 50 min to stay ahead.
+_cached_account      = None
+_cached_account_time = None
+_ACCOUNT_CACHE_TTL   = 3000  # seconds (50 minutes)
 
 from html.parser import HTMLParser
 
@@ -261,10 +264,22 @@ def _compress_rtf(rtf_str):
     except Exception:
         return None
 
+def _invalidate_account_cache():
+    """Force the next get_account() call to re-authenticate."""
+    global _cached_account, _cached_account_time
+    _cached_account      = None
+    _cached_account_time = None
+
 def get_account():
-    global _cached_account
-    if _cached_account is not None:
-        return _cached_account
+    global _cached_account, _cached_account_time
+    now = datetime.datetime.utcnow()
+
+    # Return cached account if it's still within TTL
+    if _cached_account is not None and _cached_account_time is not None:
+        age = (now - _cached_account_time).total_seconds()
+        if age < _ACCOUNT_CACHE_TTL:
+            return _cached_account
+        log.info(f"OAuth token TTL reached ({age:.0f}s ≥ {_ACCOUNT_CACHE_TTL}s) — re-authenticating")
 
     # Use client credentials (app-only) flow — no browser required.
     # Requires the App Registration to have the Office 365 Exchange Online
@@ -301,7 +316,9 @@ def get_account():
         autodiscover         = False,
         access_type          = IMPERSONATION,
     )
-    _cached_account = account
+    _cached_account      = account
+    _cached_account_time = now
+    log.info("Exchange account authenticated successfully")
     return account
 
 def contact_to_dict(c):
@@ -570,6 +587,9 @@ def full_sync():
     except Exception as e:
         tb = traceback.format_exc()
         log.error(f"Full sync failed: {type(e).__name__}: {e}\n{tb}")
+        if "unauthorized" in str(e).lower() or "invalid credentials" in str(e).lower():
+            log.warning("Auth error detected — invalidating token cache for next sync")
+            _invalidate_account_cache()
         try:
             err_db = get_db()
             _log_contact_error(err_db, "SYSTEM", "(sync engine)",
@@ -742,6 +762,10 @@ def incremental_sync():
     except Exception as e:
         tb = traceback.format_exc()
         log.error(f"Incremental sync error: {type(e).__name__}: {e}\n{tb}")
+        # If auth failed, invalidate the token cache so next cycle re-authenticates
+        if "unauthorized" in str(e).lower() or "invalid credentials" in str(e).lower():
+            log.warning("Auth error detected — invalidating token cache for next sync")
+            _invalidate_account_cache()
         # Log to sync_errors so it appears in the Errors tab
         try:
             err_db = get_db()
