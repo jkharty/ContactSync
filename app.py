@@ -378,6 +378,14 @@ def contact_detail(cid):
         "WHERE exchange_id=? ORDER BY requested_at DESC LIMIT 1",
         (row["exchange_id"],)
     ).fetchone()
+    # Log this view
+    db.execute(
+        "INSERT INTO contact_views (username, contact_id, exchange_id, display_name, viewed_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (session["username"], cid, row["exchange_id"], row["display_name"],
+         datetime.datetime.utcnow().isoformat())
+    )
+    db.commit()
     return render_template("contact.html", c=row,
         role=session["role"], username=session["username"],
         write_status=write["status"] if write else None)
@@ -733,17 +741,35 @@ def admin():
     conflicts_resolved = db.execute(
         "SELECT * FROM conflicts WHERE status='resolved' ORDER BY resolved_at DESC LIMIT 20"
     ).fetchall()
-    search_history = db.execute("""
-        SELECT username, query, category, result_count, searched_at
-        FROM search_log
-        ORDER BY searched_at DESC LIMIT 500
-    """).fetchall() if session["role"] == "admin" else []
+    if session["role"] == "admin":
+        search_history = db.execute("""
+            SELECT username, query, category, result_count, searched_at
+            FROM search_log
+            ORDER BY searched_at DESC LIMIT 500
+        """).fetchall()
+        view_history = db.execute("""
+            SELECT username, contact_id, exchange_id, display_name, viewed_at
+            FROM contact_views
+            ORDER BY viewed_at DESC LIMIT 500
+        """).fetchall()
+        activity_users = db.execute("""
+            SELECT DISTINCT username FROM (
+                SELECT username FROM search_log
+                UNION
+                SELECT username FROM contact_views
+            ) ORDER BY username COLLATE NOCASE
+        """).fetchall()
+    else:
+        search_history = []
+        view_history   = []
+        activity_users = []
     return render_template("admin.html",
         logs=logs, total=total, pending=pending,
         users=users, history=history, errors=errors,
         pending_writes=pending_writes,
         conflicts_pending=conflicts_pending, conflicts_resolved=conflicts_resolved,
-        search_history=search_history, tab=tab,
+        search_history=search_history, view_history=view_history,
+        activity_users=activity_users, tab=tab,
         role=session["role"], username=session["username"])
 
 @app.route("/admin/sync", methods=["POST"])

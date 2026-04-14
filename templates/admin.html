@@ -382,17 +382,31 @@
 </div>
 
 {% if role == 'admin' %}
-<!-- ── Search history ─────────────────────────────────────────────────────── -->
+<!-- ── Search history + Contact views ────────────────────────────────────── -->
 <div id="panel-searches" class="section-panel">
-  <div class="card card-overflow">
-    <div class="card-body" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem;">
-      <div class="section-title" style="margin-bottom:0;">Last 500 searches — all users</div>
-      {% if search_history %}
-      <span class="td-meta">{{ search_history|length }} entr{{ 'y' if search_history|length == 1 else 'ies' }}</span>
-      {% endif %}
+
+  <!-- User filter bar -->
+  <div class="card card-body" style="margin-bottom:.75rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+    <label for="activity-user-filter" style="font-weight:600; font-size:.875rem; white-space:nowrap;">Filter by user:</label>
+    <select id="activity-user-filter" style="min-width:200px;" onchange="filterActivity(this.value)">
+      <option value="">All users</option>
+      {% for u in activity_users %}
+      <option value="{{ u.username }}">{{ u.username }}</option>
+      {% endfor %}
+    </select>
+    <span id="activity-filter-count" class="td-meta"></span>
+  </div>
+
+  <!-- Searches section -->
+  <div class="card card-overflow" style="margin-bottom:1.25rem;">
+    <div class="card-body" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; padding-bottom:.75rem;">
+      <div class="section-title" style="margin-bottom:0;">Searches</div>
+      <span id="search-count" class="td-meta">
+        {{ search_history|length }} entr{{ 'y' if search_history|length == 1 else 'ies' }}
+      </span>
     </div>
     {% if search_history %}
-    <table>
+    <table id="search-history-table">
       <thead>
         <tr>
           <th>When</th>
@@ -404,22 +418,17 @@
       </thead>
       <tbody>
         {% for s in search_history %}
-        <tr>
+        <tr data-user="{{ s.username }}">
           <td class="td-meta">{{ s.searched_at | mtn }}</td>
           <td><strong>{{ s.username }}</strong></td>
           <td>
             {% if s.query %}
             <a href="{{ url_for('contacts') }}?q={{ s.query | urlencode }}" class="link-accent">{{ s.query }}</a>
-            {% else %}
-            <span class="text-muted">—</span>
-            {% endif %}
+            {% else %}<span class="text-muted">—</span>{% endif %}
           </td>
           <td>
-            {% if s.category %}
-            <span class="chip">{{ s.category }}</span>
-            {% else %}
-            <span class="text-muted">—</span>
-            {% endif %}
+            {% if s.category %}<span class="chip">{{ s.category }}</span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
           </td>
           <td class="td-meta" style="text-align:right;">{{ s.result_count if s.result_count is not none else '—' }}</td>
         </tr>
@@ -434,6 +443,47 @@
     </div>
     {% endif %}
   </div>
+
+  <!-- Contact views section -->
+  <div class="card card-overflow">
+    <div class="card-body" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; padding-bottom:.75rem;">
+      <div class="section-title" style="margin-bottom:0;">Contact views</div>
+      <span id="views-count" class="td-meta">
+        {{ view_history|length }} entr{{ 'y' if view_history|length == 1 else 'ies' }}
+      </span>
+    </div>
+    {% if view_history %}
+    <table id="view-history-table">
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Who</th>
+          <th>Contact</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in view_history %}
+        <tr data-user="{{ v.username }}">
+          <td class="td-meta">{{ v.viewed_at | mtn }}</td>
+          <td><strong>{{ v.username }}</strong></td>
+          <td>
+            {% if v.contact_id %}
+            <a href="{{ url_for('contact_detail', cid=v.contact_id) }}" class="link-accent">{{ v.display_name or '—' }}</a>
+            {% else %}{{ v.display_name or '—' }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">👁</div>
+      <div class="empty-state-title">No contact views recorded yet</div>
+      <div class="empty-state-sub">Contact opens will appear here once users start browsing.</div>
+    </div>
+    {% endif %}
+  </div>
+
 </div>
 {% endif %}
 {% endblock %}
@@ -455,6 +505,41 @@ document.querySelectorAll('.tab-btn').forEach(b =>
   b.addEventListener('click', () => showAdminTab(b.dataset.panel))
 );
 showAdminTab('{{ tab }}');
+
+// ── Activity filter (Search history + Contact views) ───────────────────────
+function filterActivity(username) {
+  ['search-history-table', 'view-history-table'].forEach(function(tid) {
+    var tbl = document.getElementById(tid);
+    if (!tbl) return;
+    tbl.querySelectorAll('tbody tr').forEach(function(tr) {
+      tr.classList.toggle('hidden', !!(username && tr.dataset.user !== username));
+    });
+  });
+
+  // Update per-section counts
+  function visibleCount(tid) {
+    var tbl = document.getElementById(tid);
+    return tbl ? tbl.querySelectorAll('tbody tr:not(.hidden)').length : 0;
+  }
+  var sc = visibleCount('search-history-table');
+  var vc = visibleCount('view-history-table');
+  var searchEl = document.getElementById('search-count');
+  var viewsEl  = document.getElementById('views-count');
+  var filterEl = document.getElementById('activity-filter-count');
+
+  if (username) {
+    if (searchEl) searchEl.textContent = sc + ' entr' + (sc === 1 ? 'y' : 'ies') + ' shown';
+    if (viewsEl)  viewsEl.textContent  = vc + ' entr' + (vc === 1 ? 'y' : 'ies') + ' shown';
+    if (filterEl) filterEl.textContent = 'Showing ' + username;
+  } else {
+    // Restore original server-rendered totals
+    var st = document.querySelectorAll('#search-history-table tbody tr').length;
+    var vt = document.querySelectorAll('#view-history-table tbody tr').length;
+    if (searchEl) searchEl.textContent = st + ' entr' + (st === 1 ? 'y' : 'ies');
+    if (viewsEl)  viewsEl.textContent  = vt + ' entr' + (vt === 1 ? 'y' : 'ies');
+    if (filterEl) filterEl.textContent = '';
+  }
+}
 
 // ── Sync trigger ───────────────────────────────────────────────────────────
 function triggerSync() {

@@ -463,6 +463,7 @@ td a:hover { text-decoration: underline; }
 /* ── Utility ──────────────────────────────────────────────── */
 .link-accent { color: var(--accent); }
 .text-muted  { color: var(--muted); }
+.hidden      { display: none !important; }
 
 /* ── Contacts page filter bar ─────────────────────────────── */
 .filter-bar {

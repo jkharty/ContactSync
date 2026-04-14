@@ -163,6 +163,17 @@ def init_db():
         );
         CREATE INDEX IF NOT EXISTS idx_search_log_user ON search_log(username);
         CREATE INDEX IF NOT EXISTS idx_search_log_time ON search_log(searched_at DESC);
+
+        CREATE TABLE IF NOT EXISTS contact_views (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            username     TEXT NOT NULL,
+            contact_id   INTEGER,
+            exchange_id  TEXT,
+            display_name TEXT,
+            viewed_at    TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_contact_views_user ON contact_views(username);
+        CREATE INDEX IF NOT EXISTS idx_contact_views_time ON contact_views(viewed_at DESC);
     """)
     conn.commit()
 
@@ -204,6 +215,13 @@ def init_db():
             result_count INTEGER, searched_at TEXT NOT NULL)""",
         "CREATE INDEX IF NOT EXISTS idx_search_log_user ON search_log(username)",
         "CREATE INDEX IF NOT EXISTS idx_search_log_time ON search_log(searched_at DESC)",
+        """CREATE TABLE IF NOT EXISTS contact_views (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL, contact_id INTEGER,
+            exchange_id TEXT, display_name TEXT,
+            viewed_at TEXT NOT NULL)""",
+        "CREATE INDEX IF NOT EXISTS idx_contact_views_user ON contact_views(username)",
+        "CREATE INDEX IF NOT EXISTS idx_contact_views_time ON contact_views(viewed_at DESC)",
     ]
     for sql in migrations:
         try:
