@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}Contacts{% endblock %} — InVision Sync</title>
+
+<!-- PWA -->
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#2d5be3">
+<link rel="apple-touch-icon" href="/static/icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ContactSync">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -91,5 +100,12 @@
   setInterval(updateSyncPill, 15000);
 </script>
 {% block extra_js %}{% endblock %}
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    .catch(function(err) { console.warn('SW registration failed:', err); });
+}
+</script>
 </body>
 </html>
