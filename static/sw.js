@@ -27,25 +27,30 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch — network-first for pages/API, cache-first for static assets
+// Fetch — stale-while-revalidate for static assets, network-first for pages/API
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Static assets: cache-first (faster loads)
+  // Static assets: serve from cache immediately (fast), then fetch fresh copy
+  // in the background so the next load always gets up-to-date assets.
+  // This means CSS/icon deploys are live on the very next page load —
+  // no need to ever bump CACHE_NAME.
   if (url.pathname.startsWith('/static/')) {
     event.respondWith(
-      caches.match(event.request).then(cached =>
-        cached || fetch(event.request).then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          return response;
+      caches.open(CACHE_NAME).then(cache =>
+        cache.match(event.request).then(cached => {
+          const networkFetch = fetch(event.request).then(response => {
+            cache.put(event.request, response.clone());
+            return response;
+          });
+          return cached || networkFetch;
         })
       )
     );
     return;
   }
 
-  // Everything else (pages, API calls): network-first
+  // Everything else (pages, API calls): network-first, cache as fallback
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );

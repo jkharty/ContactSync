@@ -1029,6 +1029,14 @@ def bulk_assign():
     db.commit()
     return jsonify({"updated": updated})
 
+# ── Service worker (served from root so scope covers entire site) ─────────────
+@app.route("/sw.js")
+def service_worker():
+    response = app.send_static_file("sw.js")
+    response.headers["Service-Worker-Allowed"] = "/"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
 # ── Startup ───────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print(f"\n* Contact Sync running at http://localhost:{config.WEB_PORT}")
