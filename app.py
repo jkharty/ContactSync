@@ -275,16 +275,6 @@ def _all_categories(db, extra_cats_str=None):
     return sorted(cat_set)
 
 # ── Routes ────────────────────────────────────────────────────────────────────
-
-# PWA service worker — must be served from root scope, no login required
-@app.route("/sw.js")
-def service_worker():
-    resp = app.send_static_file("sw.js")
-    resp.headers["Content-Type"]         = "application/javascript"
-    resp.headers["Service-Worker-Allowed"] = "/"
-    resp.headers["Cache-Control"]        = "no-cache"
-    return resp
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
     # If Easy Auth already set the session (M365 login), skip the login page.
