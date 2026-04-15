@@ -468,7 +468,8 @@
     .catch(() => { status.textContent = 'Error — please try again.'; });
   };
 
-  document.getElementById('cat-modal-bg')?.addEventListener('click', function(e) {
+  var _modalBg = document.getElementById('cat-modal-bg');
+  if (_modalBg) _modalBg.addEventListener('click', function(e) {
     if (e.target === this) closeCatModal();
   });
 
